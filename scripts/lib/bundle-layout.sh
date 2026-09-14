@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Where things live inside JoyHarness.app.
 #
-# The app binary is universal but the Python runtime cannot be (pygame and
-# hidapi ship no universal2 wheels), so the bundle carries one runtime per
-# architecture under Runtime/<arch>/. Every script that looks for a runtime
+# The app binary is universal but the Python runtime cannot be (hidapi ships
+# no universal2 wheel), so the bundle carries one runtime per architecture
+# under Runtime/<arch>/. Every script that looks for a runtime
 # reads the layout from here, and the layout itself comes from the Info.plist
 # key the app actually uses at launch — so a path change cannot drift between
 # the build script, the installer and the verifiers.

@@ -139,7 +139,7 @@ if [ "$BUILD_FLAVOR" = "production" ]; then
   if [ "$NEEDS_RUNTIME_BUILD" = "1" ]; then
     "$ROOT_DIR/scripts/build-python-runtime.sh"
   fi
-  # Runtime 没法做成 universal：pygame 和 hidapi 只发分架构的轮子，
+  # Runtime 没法做成 universal：hidapi 只发分架构的轮子，
   # 没有 universal2，所以 PyInstaller 一次只能产出一个切片。两份都带上，
   # 由 RuntimeManager 在启动时按自己的进程架构挑。
   HOST_ARCH="$(uname -m)"

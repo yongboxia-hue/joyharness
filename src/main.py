@@ -6,7 +6,6 @@ Supports configurable key mappings via JSON config files. macOS only.
 Usage:
     python -m src                    # Run with default mappings
     python src/main.py               # Also supported
-    python -m src --discover         # Calibrate button indices
     python -m src --config my.json   # Use custom config
 """
 
@@ -26,19 +25,6 @@ if __package__ is None:
         sys.path.insert(0, _project_root)
     __package__ = "src"
 
-# Prevent SDL2 from merging Joy-Con L+R into a single combined device.
-# Without this, SDL2 exclusively consumes Joy-Con R's HID report stream,
-# making it impossible for the battery reader to receive any reports from R.
-# With this set, both Joy-Cons remain independent Joystick devices and
-# hidapi can concurrently read battery reports from each one.
-os.environ.setdefault("SDL_JOYSTICK_HIDAPI_COMBINE_JOY_CONS", "0")
-
-# macOS: prevent SDL2 from installing its NSApplication subclass.
-# SDLApplication doesn't implement -macOSVersion, which Tk 9.0+ calls,
-# causing a crash on GUI startup. We don't need video — only joystick —
-# so the dummy video driver is safe and avoids the Cocoa hook.
-if sys.platform == "darwin":
-    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
 from .config_loader import GESTURE_SLOTS, load_config, get_platform_config_path
 from .constants import DEFAULT_LONG_PRESS_THRESHOLD
@@ -148,7 +134,6 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python src/main.py --discover       # Calibrate button indices first
   python src/main.py                  # Run with default mappings
   python src/main.py --config custom.json  # Use custom config
   python src/main.py --deadzone 0.2   # Override deadzone
@@ -163,21 +148,10 @@ Examples:
         help="Path to JSON config file (default: built-in defaults)",
     )
     parser.add_argument(
-        "--discover", "-d",
-        action="store_true",
-        help="Discovery mode: print raw button/axis values for calibration",
-    )
-    parser.add_argument(
         "--deadzone",
         type=float,
         default=None,
         help="Override deadzone value (0.0 to 0.99)",
-    )
-    parser.add_argument(
-        "--joystick", "-j",
-        type=int,
-        default=None,
-        help="Specific joystick device index to use",
     )
     parser.add_argument(
         "--list-controls", "-l",
@@ -215,7 +189,7 @@ def _get_pairing_instructions() -> str:
         "  1. System Settings → Bluetooth\n"
         "  2. Hold the small pairing button on the Joy-Con rail for 3 seconds\n"
         "  3. Lights will flash rapidly — select 'Joy-Con (R)' or 'Joy-Con (L)' in Bluetooth list\n"
-        "  4. Run --discover to verify connection"
+        "  4. The app picks it up on its own once it is paired"
     )
 
 
@@ -271,12 +245,6 @@ def main() -> None:
         return
 
     # Discover mode
-    if args.discover:
-        from .joycon_reader import run_discover_mode
-
-        run_discover_mode(args.joystick)
-        return
-
     from .process_guard import EXIT_ALREADY_RUNNING, SingleInstanceLock
     from .runtime import JoyHarnessRuntime
     from .runtime_ipc import IPC_DIR
@@ -295,7 +263,6 @@ def main() -> None:
     try:
         runtime = JoyHarnessRuntime(
             config,
-            joystick_index=args.joystick,
             pairing_instructions=_get_pairing_instructions,
             config_path=config_path,
         )

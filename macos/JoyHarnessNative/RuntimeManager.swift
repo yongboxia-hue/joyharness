@@ -44,8 +44,6 @@ final class RuntimeManager {
             environment["JOYHARNESS_INPUT_BACKEND"] = "native"
             environment["JOYHARNESS_NATIVE_INPUT_SOCKET"] = state.ipcURL.appendingPathComponent("input.sock").path
             environment["JOYHARNESS_IPC_DIR"] = state.ipcURL.path
-            environment["SDL_JOYSTICK_HIDAPI_COMBINE_JOY_CONS"] = "0"
-            environment["SDL_VIDEODRIVER"] = "dummy"
             task.environment = environment
             task.standardOutput = handle
             task.standardError = handle
@@ -127,9 +125,9 @@ final class RuntimeManager {
 
     /// The bundled Python runtime for the architecture we are running on.
     ///
-    /// The app binary is universal, but the runtime cannot be: pygame and
-    /// hidapi ship separate arm64 and x86_64 wheels and no universal2 build,
-    /// so PyInstaller produces one slice per architecture. Both are bundled,
+    /// The app binary is universal, but the runtime cannot be: hidapi ships
+    /// separate arm64 and x86_64 wheels and no universal2 build, so
+    /// PyInstaller produces one slice per architecture. Both are bundled,
     /// under Runtime/<arch>/, and the right one is chosen here.
     ///
     /// Note this is the *process* architecture, not the hardware's. Under

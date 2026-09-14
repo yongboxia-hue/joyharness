@@ -1,4 +1,4 @@
-"""Joy-Con hardware constants for pygame button/axis mapping.
+"""Joy-Con hardware constants.
 
 The set of valid action types is NOT here: config_loader owns it
 (BUILT_IN_ACTIONS + GESTURE_SLOTS + "passthrough"), because that is the module
@@ -8,7 +8,7 @@ which key_mapper dispatches any more, and was missing passthrough and
 focus_input, which is what almost every shipped mapping actually uses.
 
 NOTE: Button and axis indices below are based on SDL2's Switch controller
-mapping and are only used at startup for pygame's device *enumeration*
+mapping and are a leftover from the pre-raw-HID input path
 (see joycon_reader.py); the actual input path (side_button_reader.py)
 reads raw HID reports directly and doesn't use these indices at all.
 
@@ -38,7 +38,7 @@ BTN_R = 16      # R 肩键
 BTN_SR = 10     # SR (侧边右)
 BTN_ZR = 18     # ZR 扳机
 
-# === Left Joy-Con Button Indices (PLACEHOLDER — run --discover to calibrate) ===
+# === Left Joy-Con Button Indices ===
 BTN_L_Y = 0       # Y
 BTN_L_B = 1       # B
 BTN_L_X = 2       # X

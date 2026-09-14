@@ -1,4 +1,3 @@
-pygame==2.6.1
 hidapi==0.15.0
 # All three are needed together: window_switcher imports AppKit, Quartz *and*
 # ApplicationServices in one try block, so leaving the last one out silently

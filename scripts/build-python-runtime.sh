@@ -86,7 +86,6 @@ cd "$ROOT_DIR"
   --distpath "$DIST_DIR" \
   --workpath "$WORK_DIR" \
   --specpath "$WORK_DIR" \
-  --collect-all pygame \
   --hidden-import hid \
   --hidden-import Cocoa \
   --hidden-import Quartz \

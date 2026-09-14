@@ -17,10 +17,9 @@ import threading
 import time
 from typing import Callable
 
-import pygame
 
 from .config_loader import get_platform_config_path, load_config
-from .joycon_reader import find_joycon
+from .joycon_reader import connected_controllers
 from .keep_alive import KeepAliveManager
 from .process_guard import watch_parent
 from .key_mapper import KeyMapper
@@ -35,13 +34,11 @@ class JoyHarnessRuntime:
     def __init__(
         self,
         config: dict,
-        joystick_index: int | None = None,
         pairing_instructions: Callable[[], str] | None = None,
         output: Callable[[str], None] = print,
         config_path: str | None = None,
     ) -> None:
         self.config = config
-        self.joystick_index = joystick_index
         self._pairing_instructions = pairing_instructions
         self._output = output
         self.config_path = config_path
@@ -91,17 +88,14 @@ class JoyHarnessRuntime:
         if self._started:
             return
 
-        pygame.display.init()
-        pygame.joystick.init()
-
-        # pygame/SDL is only used here to log what's paired at startup; the
-        # real input path (RawJoyConReader, below) reads raw HID directly.
-        joystick = find_joycon(self.joystick_index)
-        if joystick is None:
-            self._output("No Joy-Con detected yet; macOS raw reader will wait for device.")
+        # Descriptive only. Nothing below depends on what is paired right
+        # now: each reader waits for its own device and picks it up whenever
+        # it appears.
+        controllers = connected_controllers()
+        if controllers:
+            self._output(f"Controller: {', '.join(controllers)}")
         else:
-            self._output(f"Controller: {joystick.get_name()}")
-            self._output(f"Buttons: {joystick.get_numbuttons()}, Axes: {joystick.get_numaxes()}")
+            self._output("No Joy-Con detected yet; the reader will wait for one.")
 
         self.stop_event = threading.Event()
         # The app kills this process on a clean quit; this covers the app
@@ -181,11 +175,7 @@ class JoyHarnessRuntime:
             self.key_mapper_right.release_all()
         if self.key_mapper_left is not None:
             self.key_mapper_left.release_all()
-        try:
-            pygame.joystick.quit()
-            pygame.display.quit()
-        finally:
-            self._started = False
+        self._started = False
         self._output("Clean exit. All keys released.")
 
     def record_input_event(self, button: str, phase: str) -> None:
