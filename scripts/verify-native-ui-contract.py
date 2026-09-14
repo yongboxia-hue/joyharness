@@ -493,6 +493,20 @@ check(f"defaultIdleSleepMinutes: Double = {default_idle_minutes}" in app_model_s
       "Swift and the default config disagree about the idle-sleep delay",
       f"config/user.json says {default_idle_minutes}; AppModel.defaultIdleSleepMinutes must match")
 
+# Sparkle compares CFBundleVersion to decide whether a release is an upgrade.
+# A constant there is the quiet failure mode for auto-update: the feed parses,
+# the check runs on schedule, and no update is ever offered to anyone.
+check("<key>CFBundleVersion</key>\n  <string>$VERSION</string>" in build_script,
+      "CFBundleVersion is not the release version",
+      "Sparkle compares it to decide what is newer; a fixed value offers nothing, silently")
+
+# An update the app cannot verify is an update anyone could have written. Both
+# halves have to be present: a feed with no key, or a key with no feed, and
+# Sparkle either checks nothing or trusts anything.
+for key in ("SUFeedURL", "SUPublicEDKey"):
+    check(key in build_script, f"the Info.plist no longer carries {key}",
+          "without both, updates are either never found or never verified")
+
 # --------------------------------------------------------------------------
 if FAILURES:
     print(f"Native UI contract verification FAILED ({len(FAILURES)} of {CHECKS} checks):")

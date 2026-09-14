@@ -248,8 +248,13 @@ cat > "$APP_PATH/Contents/Info.plist" <<PLIST
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
   <string>$VERSION</string>
+  <!-- Sparkle decides what is newer by comparing this, not the display
+       version. It was a hardcoded 1, which would have meant the updater
+       never saw a single release as an upgrade -- the feed would parse, the
+       check would run, and nothing would ever be offered. Tracking the
+       release version keeps one number to bump. -->
   <key>CFBundleVersion</key>
-  <string>1</string>
+  <string>$VERSION</string>
   <key>JoyHarnessBuildFlavor</key>
   <string>$BUILD_FLAVOR</string>
   <key>JoyHarnessRuntimePath</key>

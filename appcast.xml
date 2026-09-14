@@ -1,0 +1,14 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>JoyHarness</title>
+        <item>
+            <title>0.1.6</title>
+            <pubDate>Tue, 15 Sep 2026 00:05:00 +0800</pubDate>
+            <sparkle:version>0.1.6</sparkle:version>
+            <sparkle:shortVersionString>0.1.6</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/yongboxia-hue/joyharness/releases/download/v0.1.6/JoyHarness-macos-v0.1.6.dmg" length="29210210" type="application/octet-stream" sparkle:edSignature="mx2c18X7tkId9NNtPnYrPU4F4VxaKoCwJxd/Bi8mBiZpVKHH5jLSkphg7AKirzamnmNeghk6GiVzCSL44UDQAw=="/>
+        </item>
+    </channel>
+</rss>
