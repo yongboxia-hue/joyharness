@@ -144,11 +144,19 @@ JoyHarness 安装说明
 旧 Python 运行目录不会在升级时删除，便于验收期间回滚。
 README
 
+# ULMO (lzma) rather than UDZO (zlib). The static host that serves the
+# download takes files up to 25MiB; zlib put this at 27.7MiB and lzma puts it
+# at 22.2MiB. hdiutil documents ULMO as macOS 10.15+, and the app's
+# LSMinimumSystemVersion is 13.0, so every Mac that can run it can mount it.
+#
+# Only the container changes. The notarization ticket is stapled to the .app
+# inside, not to the shell around it, and the spctl assertions below check the
+# finished file the way a user's Mac will.
 hdiutil create \
   -volname "$APP_NAME" \
   -srcfolder "$STAGE_DIR" \
   -ov \
-  -format UDZO \
+  -format ULMO \
   "$DMG_PATH" >/dev/null
 
 # The DMG needs its own signature and its own ticket.
