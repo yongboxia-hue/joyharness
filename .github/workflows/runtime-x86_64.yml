@@ -1,0 +1,64 @@
+name: Build x86_64 Python runtime
+
+# 这台开发机是 Apple Silicon，而 pygame 和 hidapi 都没有 universal2 轮子，
+# 所以 PyInstaller 无法在本机产出 x86_64 的 Runtime（要么装 Rosetta，
+# 要么换机器）。这里借 GitHub 的 Intel runner 来构建，产物和 arm64 的那份
+# 一起打进同一个 App。
+#
+# runner 标签：Intel 的免费标签是 macos-15-intel / macos-26-intel。
+# 老的 macos-13 已经下线了 —— 用它不会报错，任务会一直排队等一个
+# 永远不会出现的 runner。改标签前先确认它还在 actions/runner-images 的
+# README 里列着。
+on:
+  # release.yml 调用它来取 Intel 那一份 Runtime，构建步骤只此一处。
+  workflow_call: {}
+  workflow_dispatch: {}
+  push:
+    paths:
+      - "src/**"
+      - "requirements-macos-runtime.txt"
+      - "scripts/build-python-runtime.sh"
+
+jobs:
+  build:
+    name: x86_64 runtime
+    runs-on: macos-15-intel
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Confirm this really is Intel
+        run: |
+          arch
+          python3 -c "import platform; print(platform.machine())"
+          test "$(uname -m)" = "x86_64"
+
+      - name: Build the runtime
+        run: bash scripts/build-python-runtime.sh
+
+      - name: Confirm the binary is x86_64
+        run: |
+          lipo -archs build/python-runtime/dist/JoyHarnessRuntime/JoyHarnessRuntime
+          lipo -archs build/python-runtime/dist/JoyHarnessRuntime/JoyHarnessRuntime | grep -q x86_64
+
+      # Uploaded as a tarball, not as a directory tree.
+      #
+      # upload-artifact dereferences symlinks and drops permission bits. The
+      # runtime's Python.framework is built the way every macOS framework is,
+      # with Python and Resources as symlinks into Versions/Current -- and the
+      # round trip turned those into duplicate real files. That both wasted
+      # 8MB per copy and left a framework codesign refuses to sign ("bundle
+      # format is ambiguous"), which blocks notarization. tar keeps the
+      # symlinks and the executable bits.
+      - name: Pack the runtime
+        run: tar -czf JoyHarnessRuntime-x86_64.tar.gz -C build/python-runtime/dist JoyHarnessRuntime
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JoyHarnessRuntime-x86_64
+          path: JoyHarnessRuntime-x86_64.tar.gz
+          retention-days: 14

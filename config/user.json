@@ -1,0 +1,255 @@
+{
+  "config_version": 7,
+  "description": "JoyHarness 默认按键映射：左右手柄按位置互为镜像",
+  "deadzone": 0.2,
+  "poll_interval": 0.01,
+  "double_tap_timeout": 0.35,
+  "long_press_threshold": 0.35,
+  "stick_mode": "4dir",
+  "stick_enabled": true,
+  "idle_sleep_minutes": 10,
+  "keep_alive_enabled": true,
+  "selected_apps": [],
+  "profiles": {
+    "single_right": {
+      "mappings": {
+        "buttons": {
+          "A": {
+            "action": "short_long",
+            "short": {
+              "keys": [
+                "enter"
+              ]
+            },
+            "long": {
+              "keys": [
+                "shift",
+                "enter"
+              ]
+            }
+          },
+          "B": {
+            "action": "passthrough",
+            "keys": [
+              "backspace"
+            ]
+          },
+          "X": {
+            "action": "focus_input"
+          },
+          "Y": {
+            "action": "app_switch_mode"
+          },
+          "R": {
+            "action": "passthrough",
+            "keys": [
+              "alt_r"
+            ]
+          },
+          "ZR": {
+            "action": "passthrough",
+            "keys": [
+              "fn"
+            ]
+          },
+          "Plus": {
+            "action": "short_long",
+            "short": {
+              "keys": [
+                "cmd",
+                "v"
+              ]
+            },
+            "long": {
+              "keys": [
+                "alt",
+                "a"
+              ]
+            }
+          },
+          "Home": {
+            "action": "passthrough",
+            "keys": [
+              "cmd",
+              "space"
+            ]
+          },
+          "RStick": {
+            "action": "passthrough",
+            "keys": [
+              "ctrl",
+              "x"
+            ]
+          },
+          "SR": {
+            "action": "passthrough",
+            "keys": [
+              "escape"
+            ]
+          },
+          "SL": {
+            "action": "short_long",
+            "short": {
+              "keys": [
+                "cmd",
+                "l"
+              ]
+            },
+            "long": {
+              "keys": [
+                "cmd",
+                "k"
+              ]
+            }
+          }
+        },
+        "stick_directions": {
+          "up": {
+            "action": "passthrough",
+            "keys": [
+              "up"
+            ]
+          },
+          "down": {
+            "action": "passthrough",
+            "keys": [
+              "down"
+            ]
+          },
+          "left": {
+            "action": "passthrough",
+            "keys": [
+              "left"
+            ]
+          },
+          "right": {
+            "action": "passthrough",
+            "keys": [
+              "right"
+            ]
+          }
+        }
+      }
+    },
+    "single_left": {
+      "mappings": {
+        "buttons": {
+          "A": {
+            "action": "short_long",
+            "short": {
+              "keys": [
+                "enter"
+              ]
+            },
+            "long": {
+              "keys": [
+                "shift",
+                "enter"
+              ]
+            }
+          },
+          "B": {
+            "action": "passthrough",
+            "keys": [
+              "backspace"
+            ]
+          },
+          "X": {
+            "action": "focus_input"
+          },
+          "Y": {
+            "action": "app_switch_mode"
+          },
+          "L": {
+            "action": "passthrough",
+            "keys": [
+              "alt_r"
+            ]
+          },
+          "ZL": {
+            "action": "passthrough",
+            "keys": [
+              "fn"
+            ]
+          },
+          "Minus": {
+            "action": "short_long",
+            "short": {
+              "keys": [
+                "cmd",
+                "v"
+              ]
+            },
+            "long": {
+              "keys": [
+                "alt",
+                "a"
+              ]
+            }
+          },
+          "Capture": {
+            "action": "passthrough",
+            "keys": [
+              "cmd",
+              "space"
+            ]
+          },
+          "LStick": {
+            "action": "passthrough",
+            "keys": [
+              "ctrl",
+              "x"
+            ]
+          },
+          "SL": {
+            "action": "passthrough",
+            "keys": [
+              "escape"
+            ]
+          },
+          "SR": {
+            "action": "short_long",
+            "short": {
+              "keys": [
+                "cmd",
+                "l"
+              ]
+            },
+            "long": {
+              "keys": [
+                "cmd",
+                "k"
+              ]
+            }
+          }
+        },
+        "stick_directions": {
+          "up": {
+            "action": "passthrough",
+            "keys": [
+              "up"
+            ]
+          },
+          "down": {
+            "action": "passthrough",
+            "keys": [
+              "down"
+            ]
+          },
+          "left": {
+            "action": "passthrough",
+            "keys": [
+              "left"
+            ]
+          },
+          "right": {
+            "action": "passthrough",
+            "keys": [
+              "right"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

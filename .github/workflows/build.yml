@@ -1,0 +1,50 @@
+name: Build & Test (macOS)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Show toolchain versions
+        run: |
+          sw_vers
+          swift --version
+          python3 --version
+
+      - name: Build native SwiftUI client (ad-hoc signed)
+        run: bash scripts/build-swiftui-macos-app.sh
+
+      - name: Verify native macOS app
+        run: bash scripts/verify-swiftui-macos-app.sh
+
+      - name: Python unit tests (Joy-Con / mapping / runtime logic)
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install -U pip
+          .venv/bin/python -m pip install -r requirements.txt
+          .venv/bin/python -m unittest discover -s tests -v
+
+      - name: Native config store / input gateway / diagnostics checks
+        run: |
+          bash scripts/test-native-config-store.sh
+          bash scripts/test-native-input-gateway.sh
+          bash scripts/test-diagnostics-exporter.sh
+          bash scripts/test-bundle-layout.sh
+
+      # Runs in the venv from the step above: the contract check imports the
+      # runtime modules so it can compare the real bit tables and the real
+      # long-press threshold, rather than grepping for lines that mention them.
+      - name: UI contract check
+        run: .venv/bin/python scripts/verify-native-ui-contract.py

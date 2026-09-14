@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+.venv-build/
+venv/
+env/
+
+# Runtime files
+calibration_result.json
+nsjc.log
+logs/
+assets/macos/JoyHarness.iconset/
+
+# IDE / tooling
+.claude/
+.vscode/
+.idea/
+.DS_Store

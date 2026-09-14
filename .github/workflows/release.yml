@@ -1,0 +1,173 @@
+name: Build and Release
+
+# Deliberately NOT triggered by pull_request. This workflow holds the
+# Developer ID signing key, and a pull_request trigger would hand that key to
+# whatever code the pull request contains. Both triggers below require write
+# access to the repository, which stays true when the repo goes public.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # The Intel runtime must be built on an Intel runner: pygame and hidapi
+  # publish no universal2 wheels, so PyInstaller emits one slice per
+  # architecture.
+  runtime-x86_64:
+    uses: ./.github/workflows/runtime-x86_64.yml
+
+  macos:
+    name: Build, sign and release
+    runs-on: macos-latest
+    needs: runtime-x86_64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        # Pinned: the runner's default Python has no prebuilt pygame wheel and
+        # tries to compile SDL from source.
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Fetch the x86_64 runtime
+        uses: actions/download-artifact@v4
+        with:
+          name: JoyHarnessRuntime-x86_64
+          path: build/runtime-x86_64
+
+      - name: Unpack it
+        # A tarball, so symlinks and executable bits survive the round trip --
+        # see the note in runtime-x86_64.yml.
+        run: tar -xzf build/runtime-x86_64/JoyHarnessRuntime-x86_64.tar.gz -C build/runtime-x86_64
+
+      - name: Import the signing certificate
+        # Into a keychain created for this run and deleted at the end, so the
+        # key never touches the runner's login keychain. The runner itself is
+        # ephemeral, but a temporary keychain also keeps this from depending
+        # on that being true.
+        env:
+          CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CERT_P12:-}" ]; then
+            echo "MACOS_CERT_P12 is not set; this workflow cannot produce an" >&2
+            echo "installable build. See docs/RUNBOOK.md." >&2
+            exit 1
+          fi
+          keychain="$RUNNER_TEMP/joyharness-signing.keychain-db"
+          echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" \
+            -P "$CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          # Without this, codesign blocks on a UI prompt that no one can click.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          rm -f "$RUNNER_TEMP/cert.p12"
+          # The identity name is read back from the keychain rather than
+          # hardcoded, so renewing the certificate does not silently break the
+          # build with a name mismatch.
+          identity="$(security find-identity -v -p codesigning "$keychain" \
+            | grep 'Developer ID Application' | head -1 \
+            | sed -E 's/.*"(.*)".*/\1/')"
+          if [ -z "$identity" ]; then
+            echo "No Developer ID Application identity in the imported certificate." >&2
+            exit 1
+          fi
+          echo "Signing identity: $identity"
+          echo "JOYHARNESS_CODESIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+          echo "SIGNING_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
+
+      - name: Build, sign and notarize the DMG
+        # Notarization credentials come from the environment here; locally
+        # they come from a keychain profile. Without them the build still
+        # produces a DMG and says loudly that it is not notarized -- so a
+        # missing secret degrades to a warning rather than an outage, and the
+        # assertion below is what actually catches it.
+        env:
+          JOYHARNESS_RUNTIME_BUNDLE_X86_64: ${{ github.workspace }}/build/runtime-x86_64/JoyHarnessRuntime
+          JOYHARNESS_NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          JOYHARNESS_NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+          JOYHARNESS_NOTARY_TEAM_ID: "7WCWLLYJFQ"
+        run: bash scripts/build-dmg-installer.sh
+
+      - name: Confirm the DMG is universal and properly signed
+        # The build script already verifies the app. This re-checks the DMG
+        # that is actually about to be published, from the outside, because
+        # that is the file people download.
+        run: |
+          set -euo pipefail
+          mountpoint="$(mktemp -d)"
+          hdiutil attach dist/JoyHarness.dmg -nobrowse -quiet -mountpoint "$mountpoint"
+          app="$mountpoint/JoyHarness.app"
+          archs="$(lipo -archs "$app/Contents/MacOS/JoyHarness")"
+          echo "Architectures: $archs"
+          for required in arm64 x86_64; do
+            echo "$archs" | grep -qw "$required" || {
+              echo "Published DMG is missing the $required slice." >&2
+              hdiutil detach "$mountpoint" -quiet
+              exit 1
+            }
+          done
+          codesign --verify --deep --strict --verbose=2 "$app"
+          codesign -d -r- "$app" | grep designated
+          # A release asset must be notarized. Publishing one that is not
+          # sends every downloader to System Settings to allow it by hand,
+          # which reads as the app being broken -- better to fail the build.
+          xcrun stapler validate "$app"
+          verdict="$(spctl -a -t exec -vv "$app" 2>&1 || true)"
+          echo "$verdict"
+          printf '%s' "$verdict" | grep -q 'source=Notarized Developer ID' || {
+            echo "The app in this DMG is not notarized." >&2
+            hdiutil detach "$mountpoint" -quiet
+            exit 1
+          }
+          hdiutil detach "$mountpoint" -quiet
+
+      - name: Name the asset after the tag
+        run: |
+          tag="${{ github.ref_name }}"
+          [ -n "$tag" ] || tag="manual-${{ github.run_number }}"
+          asset="dist/JoyHarness-macos-$tag.dmg"
+          mv dist/JoyHarness.dmg "$asset"
+          shasum -a 256 "$asset" | tee "$asset.sha256"
+          echo "ASSET_PATH=$asset" >> "$GITHUB_ENV"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JoyHarness-macos
+          path: |
+            ${{ env.ASSET_PATH }}
+            ${{ env.ASSET_PATH }}.sha256
+
+      - name: Attach to the release
+        # Only for a tag. A workflow_dispatch run has no release to attach to,
+        # and the artifact above is the way to inspect one.
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ github.ref_name }}" \
+            "$ASSET_PATH" "$ASSET_PATH.sha256" --clobber
+
+      - name: Remove the signing keychain
+        # always(), so the key does not survive a failed build.
+        if: always()
+        run: |
+          if [ -n "${SIGNING_KEYCHAIN:-}" ]; then
+            security delete-keychain "$SIGNING_KEYCHAIN" || true
+          fi
+          rm -f "$RUNNER_TEMP/cert.p12"

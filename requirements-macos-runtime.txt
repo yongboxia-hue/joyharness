@@ -1,0 +1,13 @@
+pygame==2.6.1
+hidapi==0.15.0
+# All three are needed together: window_switcher imports AppKit, Quartz *and*
+# ApplicationServices in one try block, so leaving the last one out silently
+# disabled the whole PyObjC fast path and every window lookup fell back to
+# osascript (which also needs an Automation grant this app never asks for).
+#
+# They must be pinned to the same release too -- ApplicationServices 12.2.2
+# requires Cocoa >= 12.2.2, so pinning Cocoa at 12.2 made the runtime build
+# unresolvable.
+pyobjc-framework-Cocoa==12.2.2
+pyobjc-framework-Quartz==12.2.2
+pyobjc-framework-ApplicationServices==12.2.2

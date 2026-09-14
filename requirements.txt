@@ -1,0 +1,11 @@
+pygame>=2.6.0
+Pillow>=10.0.0
+hidapi>=0.15.0
+
+# macOS: native window enumeration + activation (avoids slow osascript
+# subprocesses). window_switcher imports all three in one try block, so they
+# stand or fall together -- ApplicationServices missing disabled the fast path
+# entirely while the other two were installed.
+pyobjc-framework-Cocoa>=10.0
+pyobjc-framework-Quartz>=10.0
+pyobjc-framework-ApplicationServices>=10.0
