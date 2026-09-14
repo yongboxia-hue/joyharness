@@ -75,6 +75,10 @@ JoyHarness 接收 Joy-Con 的实体按键，把你配置的快捷键发送给 ma
 - 界面仅提供简体中文
 - 摇杆推动的四个方向只能改配置文件
 
+## 配件
+
+`assets/3d/` 里有一个可以直接 3D 打印的 **Joy-Con 磁吸麦克风握把**。握着手柄说话时，麦克风就在手上，不用对着屏幕喊。不是必需品，想做就拿去打。
+
 ## 反馈
 
 用得不顺、有想要的功能、或者哪里不对，欢迎开 [issue](https://github.com/yongboxia-hue/joyharness/issues)。
