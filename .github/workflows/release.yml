@@ -163,6 +163,43 @@ jobs:
           gh release upload "${{ github.ref_name }}" \
             "$ASSET_PATH" "$ASSET_PATH.sha256" --clobber
 
+      - name: Publish the update feed
+        # Only for a tag: appcast.xml announces releases, and a manual run has
+        # not produced one. Without the key the step says so and stops rather
+        # than committing a feed with no signature -- Sparkle refuses unsigned
+        # updates, so that would leave every client unable to update while
+        # looking like it worked.
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SPARKLE_ED_PRIVATE_KEY:-}" ]; then
+            echo "SPARKLE_ED_PRIVATE_KEY is not set; the update feed was not" >&2
+            echo "regenerated, so existing installs will not see this release." >&2
+            exit 1
+          fi
+          keyfile="$RUNNER_TEMP/sparkle_ed_key"
+          printf '%s' "$SPARKLE_ED_PRIVATE_KEY" | tr -d '\r\n' > "$keyfile"
+          staging="$RUNNER_TEMP/appcast-input"
+          mkdir -p "$staging"
+          cp "$ASSET_PATH" "$staging/"
+          ./build/sparkle/bin/generate_appcast \
+            --ed-key-file "$keyfile" \
+            --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/" \
+            -o appcast.xml "$staging"
+          rm -f "$keyfile"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add appcast.xml
+          if git diff --cached --quiet; then
+            echo "Feed unchanged."
+          else
+            git commit -m "Announce ${{ github.ref_name }} in the update feed"
+            git push origin HEAD:main
+          fi
+
       - name: Remove the signing keychain
         # always(), so the key does not survive a failed build.
         if: always()
