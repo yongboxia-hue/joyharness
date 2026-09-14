@@ -20,6 +20,9 @@ final class JoyHarnessAppDelegate: NSObject, NSApplicationDelegate, NSWindowDele
     private var mainWindow: NSWindow?
     private var inputGateway: InputGateway?
     private var runtimeManager: RuntimeManager?
+    // Created once and kept for the app's lifetime: Sparkle's scheduled check
+    // only runs while its updater is alive.
+    private let updateManager = UpdateManager()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.current = self
@@ -67,6 +70,7 @@ final class JoyHarnessAppDelegate: NSObject, NSApplicationDelegate, NSWindowDele
     private func configureMainWindow() {
         let root = RootView()
             .environmentObject(AppState.shared)
+            .environmentObject(updateManager)
             .frame(minWidth: 980, minHeight: 650)
         let hostingController = NSHostingController(rootView: root)
         let window = NSWindow(contentViewController: hostingController)

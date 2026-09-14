@@ -12,7 +12,7 @@ BUILD_CONFIGURATION="${JOYHARNESS_BUILD_CONFIGURATION:-debug}"
 # CHANGELOG.md -- verify-native-ui-contract.py asserts that. Building exactly
 # the way a hand-maintained doc once stamped 0.2.0 onto a 0.1.0 tree, so the
 # 关于 page and the changelog disagreed about what the user was running.
-VERSION="${JOYHARNESS_VERSION:-0.1.5}"
+VERSION="${JOYHARNESS_VERSION:-0.1.6}"
 
 if [ "$BUILD_FLAVOR" = "production" ]; then
   APP_NAME="JoyHarness"
@@ -91,6 +91,36 @@ fi
 # v0.1.2 就是这样：arm64 的包在 Intel 机器上报"这台 Mac 不支持此应用程序"。
 # Swift 这边交叉编译是现成的，SDK 里两个切片都有。
 # 设 JOYHARNESS_ARCHS 可以只编一个（比如本机快速迭代）。
+# Sparkle, for in-app updates.
+#
+# Pinned and checksummed rather than "latest": an updater is the one component
+# that can replace the whole app on a user's machine, so what goes into the
+# build should not change because upstream published something today.
+#
+# Cached under build/, not committed -- 2.9MB of binary in git for something
+# reproducible from a URL and a hash.
+SPARKLE_VERSION="2.10.0"
+SPARKLE_SHA256="c2bf58aa8387266ac179357b1415d6f2635f044da8be41042af32425dae6da0c"
+SPARKLE_DIR="$ROOT_DIR/build/sparkle"
+SPARKLE_FRAMEWORK="$SPARKLE_DIR/Sparkle.framework"
+if [ ! -d "$SPARKLE_FRAMEWORK" ]; then
+  echo "Fetching Sparkle $SPARKLE_VERSION..."
+  mkdir -p "$SPARKLE_DIR"
+  archive="$SPARKLE_DIR/Sparkle-$SPARKLE_VERSION.tar.xz"
+  curl -fsSL -o "$archive" \
+    "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz"
+  actual="$(shasum -a 256 "$archive" | awk '{print $1}')"
+  if [ "$actual" != "$SPARKLE_SHA256" ]; then
+    echo "Sparkle archive checksum mismatch." >&2
+    echo "  expected $SPARKLE_SHA256" >&2
+    echo "  actual   $actual" >&2
+    rm -f "$archive"
+    exit 1
+  fi
+  tar -xf "$archive" -C "$SPARKLE_DIR"
+fi
+[ -d "$SPARKLE_FRAMEWORK" ] || { echo "Sparkle.framework missing after fetch." >&2; exit 1; }
+
 JOYHARNESS_ARCHS="${JOYHARNESS_ARCHS:-arm64 x86_64}"
 SLICE_DIR="$ROOT_DIR/build/swift-slices"
 rm -rf "$SLICE_DIR" && mkdir -p "$SLICE_DIR"
@@ -101,6 +131,9 @@ for arch in $JOYHARNESS_ARCHS; do
     "${SWIFT_OPTIMIZATION[@]}" \
     -target "$arch-apple-macos13.0" \
     -sdk "$SDK_PATH" \
+    -F "$SPARKLE_DIR" \
+    -framework Sparkle \
+    -Xlinker -rpath -Xlinker "@executable_path/../Frameworks" \
     "${SWIFT_SOURCES[@]}" \
     -framework SwiftUI \
     -framework AppKit \
@@ -111,6 +144,13 @@ for arch in $JOYHARNESS_ARCHS; do
   SLICES+=("$SLICE_DIR/$arch")
 done
 lipo -create "${SLICES[@]}" -output "$EXECUTABLE_DIR/$EXECUTABLE_NAME"
+FRAMEWORK_DIR="$APP_PATH/Contents/Frameworks"
+mkdir -p "$FRAMEWORK_DIR"
+rm -rf "$FRAMEWORK_DIR/Sparkle.framework"
+# ditto, not cp: the framework is full of symlinks (Versions/Current and the
+# top-level aliases), and flattening them produces a bundle codesign refuses.
+ditto "$SPARKLE_FRAMEWORK" "$FRAMEWORK_DIR/Sparkle.framework"
+
 echo "Swift binary architectures: $(lipo -archs "$EXECUTABLE_DIR/$EXECUTABLE_NAME")"
 
 SELECTED_ICON="$ROOT_DIR/assets/controller/app-icon.png"
@@ -214,6 +254,20 @@ cat > "$APP_PATH/Contents/Info.plist" <<PLIST
   <string>$BUILD_FLAVOR</string>
   <key>JoyHarnessRuntimePath</key>
   <string>$RUNTIME_DIR</string>
+  <!-- Sparkle. The feed lives on a URL rather than in code so it can move
+       (to the site's own domain, say) without shipping a new build just to
+       change where the next one is announced. SUPublicEDKey is the public
+       half of the update-signing key: an update that is not signed by the
+       matching private key is refused, so a tampered feed or a replaced
+       download cannot install anything. -->
+  <key>SUFeedURL</key>
+  <string>https://raw.githubusercontent.com/yongboxia-hue/joyharness/main/appcast.xml</string>
+  <key>SUPublicEDKey</key>
+  <string>3iMkS5rtHsm6hfNvB/HmjF1nK1D70VFfMJIHi3yzLHc=</string>
+  <key>SUEnableAutomaticChecks</key>
+  <true/>
+  <key>SUScheduledCheckInterval</key>
+  <integer>86400</integer>
   <key>JoyHarnessRuntimeExecutable</key>
   <string>$JOYHARNESS_RUNTIME_TEMPLATE</string>
   <key>JoyHarnessIPCPath</key>
@@ -257,6 +311,35 @@ if [ -n "$CODESIGN_IDENTITY" ]; then
   # Order matters: each signature seals everything beneath it, so anything
   # signed after its container invalidates that container's signature. Deepest
   # path first, app bundle last.
+  # Sparkle first, and from the inside out. It carries two XPC services and
+  # an updater app, each a bundle in its own right; codesign will not cover
+  # them by signing the framework, and an unsigned one fails notarization and
+  # is refused at launch.
+  SPARKLE_IN_APP="$APP_PATH/Contents/Frameworks/Sparkle.framework"
+  if [ -d "$SPARKLE_IN_APP" ]; then
+    # Every Mach-O first, deepest path first, then the bundles that contain
+    # them, then the framework version. Listing the bundles by hand missed
+    # Versions/B/Autoupdate -- a loose executable, not a bundle -- and
+    # notarization rejected the whole submission for it. Sweeping for Mach-O
+    # files cannot miss the next one.
+    while IFS= read -r macho; do
+      [ -n "$macho" ] && codesign "${CODESIGN_FLAGS[@]}" "$macho"
+    done < <(
+      find "$SPARKLE_IN_APP/Versions/B" -type f -perm +111 -print0 2>/dev/null \
+        | xargs -0 file --mime-type 2>/dev/null \
+        | awk -F': ' '$2 ~ /application\/x-mach-binary/ {print $1}' \
+        | awk '{ print length($0) "\t" $0 }' | sort -rn | cut -f2-
+    )
+    for nested in \
+      "$SPARKLE_IN_APP/Versions/B/XPCServices/Downloader.xpc" \
+      "$SPARKLE_IN_APP/Versions/B/XPCServices/Installer.xpc" \
+      "$SPARKLE_IN_APP/Versions/B/Updater.app" \
+      "$SPARKLE_IN_APP/Versions/B"; do
+      [ -e "$nested" ] && codesign "${CODESIGN_FLAGS[@]}" "$nested"
+    done
+    echo "Signed Sparkle."
+  fi
+
   RUNTIME_ROOT="$RESOURCE_DIR/Runtime"
   if [ -d "$RUNTIME_ROOT" ]; then
     echo "Signing the bundled runtime..."

@@ -3,6 +3,7 @@ import SwiftUI
 
 struct AboutView: View {
     @EnvironmentObject private var state: AppState
+    @EnvironmentObject private var updater: UpdateManager
 
     @ViewBuilder
     private var accessibilityAction: some View {
@@ -128,6 +129,26 @@ struct AboutView: View {
                                 .labelsHidden()
                                 .disabled(state.isSavingIdleSleep)
                                 .accessibilityIdentifier("idle-sleep-toggle")
+                            )
+                        )
+                        Divider().padding(.leading, 47).padding(.vertical, 12)
+                        InfoRow(
+                            symbol: "arrow.down.circle",
+                            title: "自动检查更新",
+                            detail: updater.automaticallyChecks
+                                ? "每天检查一次。发现新版本会先问你，不会自己装。"
+                                : "关闭后不会再检查，需要你自己留意新版本。",
+                            tint: .secondary,
+                            trailing: AnyView(
+                                HStack(spacing: 10) {
+                                    Button("检查") { updater.checkForUpdates() }
+                                        .buttonStyle(.bordered)
+                                        .controlSize(.small)
+                                        .accessibilityIdentifier("check-updates-now")
+                                    Toggle("", isOn: $updater.automaticallyChecks)
+                                        .labelsHidden()
+                                        .accessibilityIdentifier("auto-update-toggle")
+                                }
                             )
                         )
                         Divider().padding(.leading, 47).padding(.vertical, 12)
