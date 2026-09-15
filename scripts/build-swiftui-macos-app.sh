@@ -12,7 +12,7 @@ BUILD_CONFIGURATION="${JOYHARNESS_BUILD_CONFIGURATION:-debug}"
 # CHANGELOG.md -- verify-native-ui-contract.py asserts that. Building exactly
 # the way a hand-maintained doc once stamped 0.2.0 onto a 0.1.0 tree, so the
 # 关于 page and the changelog disagreed about what the user was running.
-VERSION="${JOYHARNESS_VERSION:-0.1.6}"
+VERSION="${JOYHARNESS_VERSION:-0.1.7}"
 
 if [ "$BUILD_FLAVOR" = "production" ]; then
   APP_NAME="JoyHarness"
