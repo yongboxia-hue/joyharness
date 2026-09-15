@@ -53,6 +53,38 @@ jobs:
           fi
           echo "Tag and tree agree on $built."
 
+      - name: Confirm every secret this release needs is set
+        # A missing secret used to surface wherever it was first read, which
+        # for the publishing credentials is after the build, the signature and
+        # fifteen minutes of notarization -- and it surfaces as an empty string,
+        # so what you see is an authorization failure rather than an absence.
+        # Checking all of them here costs seconds and names all the missing ones
+        # at once instead of one per re-run.
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+          COS_SECRET_ID: ${{ secrets.COS_SECRET_ID }}
+          COS_SECRET_KEY: ${{ secrets.COS_SECRET_KEY }}
+        run: |
+          set -uo pipefail
+          missing=""
+          for name in MACOS_CERT_P12 MACOS_CERT_PASSWORD KEYCHAIN_PASSWORD \
+                      NOTARY_APPLE_ID NOTARY_PASSWORD SPARKLE_ED_PRIVATE_KEY \
+                      COS_SECRET_ID COS_SECRET_KEY; do
+            [ -n "${!name}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "Repository secrets not set:$missing" >&2
+            echo "Set them with 'gh secret set <NAME>' and re-run this tag." >&2
+            exit 1
+          fi
+          echo "All eight release secrets are present."
+
       - name: Set up Python
         # Pinned: the runner's default Python has no prebuilt pygame wheel and
         # tries to compile SDL from source.
