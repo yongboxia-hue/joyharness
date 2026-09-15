@@ -25,7 +25,7 @@ struct ConnectionView: View {
                 // "paused" are said better by the sections below -- each of
                 // which now reads its own state off `availability` -- so a
                 // banner repeating them is the same sentence twice on a screen.
-                if state.availability == .permissionRequired || state.availability == .serviceStopped {
+                if showsRecoveryCard {
                     recoveryCard
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
@@ -76,32 +76,45 @@ struct ConnectionView: View {
                     }
                 }
 
-                section(JoySectionHeader("按键响应")) {
-                    // Keyed off availability, not just `paused`: without the
-                    // Accessibility grant no key can be sent at all, and this row
-                    // still read 正在响应 · 按键正在发出快捷键 on the same screen as
-                    // the red 还需要完成系统授权 banner.
-                    InfoRow(
-                        symbol: responseSymbol,
-                        title: responseTitle,
-                        detail: responseDetail,
-                        tint: responseTint,
-                        trailing: AnyView(
-                            Button(state.isChangingPauseState ? "处理中…" : (state.paused ? "继续响应" : "暂停响应")) {
-                                state.togglePaused()
-                            }
-                            .buttonStyle(SecondaryButtonStyle())
-                            .disabled(!state.serviceRunning || state.isChangingPauseState)
+                // Hidden while the banner is up: in those two states this row
+                // says the banner's sentence again in weaker words, and the
+                // only control it carries is disabled anyway. Exactly one
+                // place on the page explains why a press does nothing.
+                if !showsRecoveryCard {
+                    section(JoySectionHeader("按键响应")) {
+                        // Keyed off availability, not just `paused`: without the
+                        // Accessibility grant no key can be sent at all, and this
+                        // row still read 正在响应 · 按键正在发出快捷键 on the same
+                        // screen as the red 还需要完成系统授权 banner.
+                        InfoRow(
+                            symbol: responseSymbol,
+                            title: responseTitle,
+                            detail: responseDetail,
+                            tint: responseTint,
+                            trailing: AnyView(
+                                Button(state.isChangingPauseState ? "处理中…" : (state.paused ? "继续响应" : "暂停响应")) {
+                                    state.togglePaused()
+                                }
+                                .buttonStyle(SecondaryButtonStyle())
+                                .disabled(!state.serviceRunning || state.isChangingPauseState)
+                            )
                         )
-                    )
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 12)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                    }
+                    .transition(.opacity)
                 }
             }
             .animation(JoyMotion.stateChange, value: state.availability)
             .padding(30)
             .frame(maxWidth: 980, alignment: .leading)
         }
+    }
+
+    /// The two states the page cannot fix from the sections below: the grant
+    /// lives on another page, and a stopped service has to be restarted.
+    private var showsRecoveryCard: Bool {
+        state.availability == .permissionRequired || state.availability == .serviceStopped
     }
 
     /// A header plus the group it labels, kept together so every section on the
@@ -209,7 +222,7 @@ struct ConnectionView: View {
                 .font(.system(size: 11, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
                 .frame(width: 32, height: 26)
-                .background(JoyTheme.keyCap)
+                .background(JoyTheme.keyCapOnRow)
                 .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
             Text(item.shortcut)
                 .font(.system(size: 13, weight: .semibold))

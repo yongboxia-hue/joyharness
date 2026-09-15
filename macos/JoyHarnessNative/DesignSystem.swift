@@ -11,6 +11,16 @@ enum JoyTheme {
     // 是全客户端仅剩的两处自定义色值。
     static let keyCap = Color(red: 0.16, green: 0.16, blue: 0.17)
     static let keyCapRaised = Color(red: 0.27, green: 0.27, blue: 0.29)
+
+    /// A key cap drawn on a grouped-list row rather than on the 按键 page's
+    /// light card. The dark cap all but disappears against a dark-mode row, so
+    /// this one lightens instead of staying fixed.
+    static let keyCapOnRow = Color(nsColor: NSColor(name: nil) { appearance in
+        let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        return isDark
+            ? NSColor(srgbRed: 0.33, green: 0.33, blue: 0.35, alpha: 1)
+            : NSColor(srgbRed: 0.16, green: 0.16, blue: 0.17, alpha: 1)
+    })
     static let sidebarWidth: CGFloat = 232
 }
 
