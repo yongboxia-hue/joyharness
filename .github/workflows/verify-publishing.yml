@@ -1,0 +1,27 @@
+name: Verify publishing credentials
+
+# Dispatch-only. The publishing credentials are otherwise exercised for the
+# first time during a release -- after the build has been signed, notarized and
+# uploaded to GitHub, at which point the tag is already public and a wrong key
+# means a re-run rather than an edit. This proves they work, on demand, in
+# seconds, and is the thing to run after rotating them.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  credentials:
+    name: Write a canary object to the bucket
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Needs no credentials: catches a broken signature format before the
+      # network call below can blame the key for it.
+      - name: Signature format
+        run: python3 scripts/publish-to-cos.py --self-test
+
+      - name: Bucket write access
+        env:
+          COS_SECRET_ID: ${{ secrets.COS_SECRET_ID }}
+          COS_SECRET_KEY: ${{ secrets.COS_SECRET_KEY }}
+        run: python3 scripts/publish-to-cos.py --check-credentials

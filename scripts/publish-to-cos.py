@@ -65,6 +65,7 @@ CONTENT_TYPES = {
     ".dmg": "application/x-apple-diskimage",
     ".sha256": "text/plain; charset=utf-8",
     ".xml": "application/xml; charset=utf-8",
+    ".txt": "text/plain; charset=utf-8",
 }
 
 
@@ -250,6 +251,28 @@ def credential(name: str) -> str:
     return found.stdout.strip()
 
 
+def check_credentials(secret_id: str, secret_key: str) -> int:
+    """Prove the configured credentials can actually write to the bucket.
+
+    --self-test checks the signature format and needs no credentials; this
+    checks the credentials and needs the network. Both exist because the
+    alternative is finding out during a release, after the build has been
+    signed, notarized and published to GitHub -- at which point the tag is
+    public and the fix is a re-run rather than an edit.
+
+    It writes a small object rather than reading one: read access is public
+    here, so a successful GET would prove nothing about the key.
+    """
+    # A real extension: Path(".credential-check").suffix is empty, and an
+    # object with no known type is refused before it is ever uploaded.
+    key = "credential-check.txt"
+    body = f"ok {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}\n".encode()
+    put(key, body, REVALIDATE, secret_id, secret_key)
+    verify(key, body)
+    print("publish-to-cos: these credentials can write to the bucket.")
+    return 0
+
+
 def main(argv: list[str]) -> int:
     if argv == ["--self-test"]:
         return self_test()
@@ -276,6 +299,9 @@ def main(argv: list[str]) -> int:
               "  security add-generic-password -s joyharness-COS_SECRET_KEY -a \"$USER\" -w\n"
               "Nothing was published.", file=sys.stderr)
         return 1
+
+    if argv == ["--check-credentials"]:
+        return check_credentials(secret_id, secret_key)
 
     paths = [Path(argument) for argument in argv]
     for path in paths:
