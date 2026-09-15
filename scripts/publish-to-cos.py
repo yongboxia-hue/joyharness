@@ -37,6 +37,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import os
+import subprocess
 import sys
 import time
 import urllib.error
@@ -228,6 +229,27 @@ def alias_uploads(paths: list[Path], alias: str) -> list[tuple[str, bytes, str]]
     return uploads
 
 
+def credential(name: str) -> str:
+    """The environment first, then the login keychain.
+
+    CI has no keychain and sets the environment from repository secrets. A
+    local publish has the opposite problem: passing a secret on a command line
+    puts it in shell history, and prompting for it puts it wherever the session
+    is being recorded. Reading it from the keychain means a local run needs
+    neither -- the value is stored once, by hand, and never appears again.
+    """
+    value = os.environ.get(name, "")
+    if value:
+        return value
+    try:
+        found = subprocess.run(
+            ["security", "find-generic-password", "-s", f"joyharness-{name}", "-w"],
+            capture_output=True, text=True, check=True)
+    except (OSError, subprocess.CalledProcessError):
+        return ""
+    return found.stdout.strip()
+
+
 def main(argv: list[str]) -> int:
     if argv == ["--self-test"]:
         return self_test()
@@ -245,11 +267,14 @@ def main(argv: list[str]) -> int:
         print(__doc__, file=sys.stderr)
         return 2
 
-    secret_id = os.environ.get("COS_SECRET_ID", "")
-    secret_key = os.environ.get("COS_SECRET_KEY", "")
+    secret_id = credential("COS_SECRET_ID")
+    secret_key = credential("COS_SECRET_KEY")
     if not secret_id or not secret_key:
-        print("COS_SECRET_ID and COS_SECRET_KEY are not set; nothing was published.",
-              file=sys.stderr)
+        print("No COS credentials. CI sets COS_SECRET_ID and COS_SECRET_KEY from\n"
+              "repository secrets; for a local publish, store them once with:\n"
+              "  security add-generic-password -s joyharness-COS_SECRET_ID  -a \"$USER\" -w\n"
+              "  security add-generic-password -s joyharness-COS_SECRET_KEY -a \"$USER\" -w\n"
+              "Nothing was published.", file=sys.stderr)
         return 1
 
     paths = [Path(argument) for argument in argv]
