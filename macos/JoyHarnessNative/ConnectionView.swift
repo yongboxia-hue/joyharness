@@ -34,18 +34,23 @@ struct ConnectionView: View {
                 // two controllers used to be two floating cards side by side
                 // and the mappings a grid of cards inside another card; both
                 // put a second grey on top of a nearly identical first.
-                section(JoySectionHeader("设备")) {
-                    controllerRow(
-                        name: "左 Joy-Con",
-                        imageName: ControllerSide.left.imageName,
-                        status: state.leftController
-                    )
-                    JoyRowDivider(inset: 60)
-                    controllerRow(
-                        name: "右 Joy-Con",
-                        imageName: ControllerSide.right.imageName,
-                        status: state.rightController
-                    )
+                // Two cards side by side rather than two full-width rows: a
+                // row that wide is mostly empty, and the controller is the one
+                // thing on this page worth showing at a size you can see.
+                VStack(alignment: .leading, spacing: 8) {
+                    JoySectionHeader("设备")
+                    HStack(spacing: 14) {
+                        controllerCard(
+                            name: "左 Joy-Con",
+                            imageName: ControllerSide.left.imageName,
+                            status: state.leftController
+                        )
+                        controllerCard(
+                            name: "右 Joy-Con",
+                            imageName: ControllerSide.right.imageName,
+                            status: state.rightController
+                        )
+                    }
                 }
 
                 section(
@@ -65,13 +70,24 @@ struct ConnectionView: View {
                             .padding(.horizontal, 14)
                             .padding(.vertical, 12)
                     } else {
-                        // One row per mapping, so a fifth entry cannot leave a
-                        // hole in a three-column grid the way it used to.
-                        ForEach(Array(previewMappings.enumerated()), id: \.element.id) { index, item in
+                        // Two columns of single-line rows. Six entries fill
+                        // three rows exactly, so no cell is ever left empty --
+                        // which is what made the old three-column grid of five
+                        // look unfinished.
+                        ForEach(Array(mappingPairs.enumerated()), id: \.offset) { index, pair in
                             if index > 0 {
-                                JoyRowDivider(inset: 58)
+                                JoyRowDivider(inset: 0)
                             }
-                            mappingRow(item)
+                            HStack(spacing: 0) {
+                                mappingCell(pair.leading)
+                                Divider().opacity(0.6)
+                                if let trailing = pair.trailing {
+                                    mappingCell(trailing)
+                                } else {
+                                    Color.clear.frame(maxWidth: .infinity)
+                                }
+                            }
+                            .frame(height: 46)
                         }
                     }
                 }
@@ -212,11 +228,19 @@ struct ConnectionView: View {
         }
     }
 
-    /// One mapping, as a table row: the key cap, what it sends, what that
-    /// means. The shortcut column is a fixed width so the meanings line up.
-    /// The cap is drawn the way the 按键 page draws it, so a button has one
-    /// appearance in this app rather than one per page.
-    private func mappingRow(_ item: MappingPreviewItem) -> some View {
+    /// The previews laid out two per row.
+    private var mappingPairs: [(leading: MappingPreviewItem, trailing: MappingPreviewItem?)] {
+        let items = previewMappings
+        return stride(from: 0, to: items.count, by: 2).map { index in
+            (items[index], index + 1 < items.count ? items[index + 1] : nil)
+        }
+    }
+
+    /// One mapping, on one line: the key cap, what it sends, what that means.
+    /// The shortcut column is a fixed width so the meanings line up down the
+    /// column. The cap is drawn the way the 按键 page draws it, so a button has
+    /// one appearance in this app rather than one per page.
+    private func mappingCell(_ item: MappingPreviewItem) -> some View {
         HStack(spacing: 12) {
             Text(item.key)
                 .font(.system(size: 11, weight: .bold, design: .rounded))
@@ -227,7 +251,7 @@ struct ConnectionView: View {
             Text(item.shortcut)
                 .font(.system(size: 13, weight: .semibold))
                 .lineLimit(1)
-                .frame(width: 96, alignment: .leading)
+                .frame(width: 88, alignment: .leading)
             Text(item.semantic)
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
@@ -235,41 +259,45 @@ struct ConnectionView: View {
             Spacer(minLength: 8)
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 9)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func controllerRow(name: String, imageName: String, status: ControllerStatus) -> some View {
-        HStack(spacing: 14) {
-            Group {
-                if let image = state.imageResource(named: imageName) {
-                    Image(nsImage: image)
-                        .resizable()
-                        .scaledToFit()
-                        .opacity(status.connected ? 1 : 0.4)
+    private func controllerCard(name: String, imageName: String, status: ControllerStatus) -> some View {
+        JoyGroup {
+            HStack(spacing: 18) {
+                Group {
+                    if let image = state.imageResource(named: imageName) {
+                        Image(nsImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .opacity(status.connected ? 1 : 0.4)
+                    }
                 }
-            }
-            .frame(width: 30, height: 48)
+                .frame(width: 58, height: 96)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(name)
-                    .font(.system(size: 13, weight: .semibold))
-                if status.connected {
-                    BatteryLevelView(level: status.batteryLevel, charging: status.charging)
-                } else {
-                    Text(status.asleep ? "按任意键唤醒" : "未连接")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 7) {
+                    Text(name)
+                        .font(.system(size: 14, weight: .semibold))
+                    // Only what the pill does not already say. A second
+                    // 未连接 under a 未连接 pill is the same word twice.
+                    if status.connected {
+                        BatteryLevelView(level: status.batteryLevel, charging: status.charging)
+                    } else if status.asleep {
+                        Text("按任意键唤醒")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
                 }
+
+                Spacer(minLength: 12)
+                StatusPill(
+                    text: status.statusText,
+                    color: status.connected ? JoyTheme.green
+                         : (status.asleep ? JoyTheme.blue : .secondary)
+                )
             }
-            Spacer(minLength: 12)
-            StatusPill(
-                text: status.statusText,
-                color: status.connected ? JoyTheme.green
-                     : (status.asleep ? JoyTheme.blue : .secondary)
-            )
+            .padding(18)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
     }
 
     /// Which buttons to surface first. Order only -- what each one *means* is
@@ -278,9 +306,10 @@ struct ConnectionView: View {
     /// controller began mirroring the right by position: it still called
     /// left X "删除" long after ⌫ had moved to B, so the summary confidently
     /// described the wrong button.
+    /// Six, so the two columns come out even.
     private static let previewOrder: [ControllerSide: [String]] = [
-        .right: ["ZR", "Plus", "A", "B", "X"],
-        .left: ["ZL", "Minus", "A", "B", "X"],
+        .right: ["ZR", "Plus", "A", "B", "X", "Y"],
+        .left: ["ZL", "Minus", "A", "B", "X", "Y"],
     ]
 
     private var previewMappings: [MappingPreviewItem] {
@@ -289,7 +318,7 @@ struct ConnectionView: View {
         var result: [MappingPreviewItem] = []
 
         func append(_ card: MappingCardModel, _ row: MappingRow) {
-            guard result.count < 5, row.value != "未设置" else { return }
+            guard result.count < 6, row.value != "未设置" else { return }
             let gesture = row.gesture ?? "单击"
             let id = "\(card.id)-\(gesture)"
             guard !result.contains(where: { $0.id == id }) else { return }
