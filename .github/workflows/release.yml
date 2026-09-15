@@ -142,7 +142,13 @@ jobs:
           [ -n "$tag" ] || tag="manual-${{ github.run_number }}"
           asset="dist/JoyHarness-macos-$tag.dmg"
           mv dist/JoyHarness.dmg "$asset"
-          shasum -a 256 "$asset" | tee "$asset.sha256"
+          # Record the bare filename, not the build path. A checksum file
+          # saying "dist/JoyHarness-macos-v0.1.6.dmg" makes `shasum -c` fail
+          # for the person who downloaded both files into one folder -- which
+          # reads as a corrupted or tampered download rather than as a
+          # cosmetic path problem.
+          ( cd "$(dirname "$asset")" && shasum -a 256 "$(basename "$asset")" \
+              | tee "$(basename "$asset").sha256" )
           echo "ASSET_PATH=$asset" >> "$GITHUB_ENV"
 
       - name: Upload build artifact
