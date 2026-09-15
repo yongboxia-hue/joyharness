@@ -26,9 +26,15 @@ if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   exit 2
 fi
 
-if [ -n "$(git status --porcelain)" ]; then
-  echo "The working tree has uncommitted changes. Commit or stash them first --" >&2
-  echo "this script makes a commit, and it should contain only the version bump." >&2
+# CHANGELOG.md is exempt: writing the release note is the first step of a
+# release, and making that its own commit before this one was busywork in the
+# way of the thing it precedes. Everything else has to be committed, because
+# this script makes a commit and it should contain the release and nothing else.
+dirty="$(git status --porcelain | grep -v ' CHANGELOG.md$' || true)"
+if [ -n "$dirty" ]; then
+  echo "The working tree has uncommitted changes outside CHANGELOG.md:" >&2
+  echo "$dirty" >&2
+  echo "Commit or stash them first -- this commit should contain only the release." >&2
   exit 1
 fi
 
