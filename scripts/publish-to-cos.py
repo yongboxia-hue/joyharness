@@ -9,6 +9,19 @@ package. Anyone who could not reach GitHub was stuck on whatever version they
 first installed, no matter where the site pointed its download button. So the
 feed and the packages it announces both live here now.
 
+Two names for one build, because two readers want opposite things:
+
+  JoyHarness-macos-v0.1.9.dmg   Sparkle. Each enclosure in the feed carries a
+                                signature and a byte length for one exact
+                                build, so its URL has to name an object that
+                                never changes.
+  JoyHarness.dmg                The website. A fixed address means the site
+                                stops needing an edit and a deploy every
+                                release just to move a version number, and the
+                                file the visitor saves is named after the app
+                                rather than after a number they cannot act on.
+                                The app tells them what version they have.
+
 No third-party packages. This runs in the workflow that holds the Developer ID
 signing key, and COS's signature is forty lines of hmac -- pulling a vendor SDK
 into that process to save them would widen what has to be trusted with the key.
@@ -38,13 +51,19 @@ PUBLIC_PREFIX = f"https://{HOST}/"
 
 # There is no CDN in front of this bucket -- the default domain is the origin --
 # so these headers are the only cache control there is, and nothing needs
-# purging after a publish. A package filename carries its version, so a cached
-# copy stays correct forever. The feed is the opposite: same URL, new meaning
-# every release, and a stale cached copy is an update nobody is offered.
-SERVING = {
-    ".dmg": ("application/x-apple-diskimage", "public, max-age=31536000, immutable", True),
-    ".sha256": ("text/plain; charset=utf-8", "public, max-age=31536000, immutable", False),
-    ".xml": ("application/xml; charset=utf-8", "public, max-age=300, must-revalidate", False),
+# purging after a publish.
+#
+# A versioned package and the alias want opposite rules for the same bytes. The
+# versioned name is good forever. The alias is the same URL with new bytes every
+# release, and the feed is the same again: cached too long, a release is invisible
+# to everyone who already visited.
+IMMUTABLE = "public, max-age=31536000, immutable"
+REVALIDATE = "public, max-age=300, must-revalidate"
+
+CONTENT_TYPES = {
+    ".dmg": "application/x-apple-diskimage",
+    ".sha256": "text/plain; charset=utf-8",
+    ".xml": "application/xml; charset=utf-8",
 }
 
 
@@ -87,23 +106,24 @@ def authorization(method: str, key: str, headers: dict[str, str],
             f"&q-signature={signature}")
 
 
-def put(path: Path, secret_id: str, secret_key: str) -> None:
-    if path.suffix not in SERVING:
-        raise SystemExit(f"{path.name}: no serving rules for a {path.suffix} file")
-    content_type, cache_control, as_attachment = SERVING[path.suffix]
-    body = path.read_bytes()
-    key = path.name
+def put(key: str, body: bytes, cache_control: str,
+        secret_id: str, secret_key: str) -> None:
+    suffix = Path(key).suffix
+    if suffix not in CONTENT_TYPES:
+        raise SystemExit(f"{key}: no serving rules for a {suffix} file")
 
     headers = {
         "host": HOST,
-        "content-type": content_type,
+        "content-type": CONTENT_TYPES[suffix],
         "content-length": str(len(body)),
         "cache-control": cache_control,
     }
-    if as_attachment:
+    if suffix == ".dmg":
         # COS already forces this on its default domain, but that is their
         # policy and not a promise. Saying it ourselves keeps "clicking the
-        # button saves a file" from depending on a vendor default holding.
+        # button saves a file" from depending on a vendor default holding --
+        # and names the saved file after the key, so the alias arrives as
+        # JoyHarness.dmg rather than under the versioned name it was built as.
         headers["content-disposition"] = f'attachment; filename="{key}"'
     headers["authorization"] = authorization("put", key, headers, secret_id, secret_key)
 
@@ -116,10 +136,10 @@ def put(path: Path, secret_id: str, secret_key: str) -> None:
     except urllib.error.HTTPError as error:
         raise SystemExit(f"{key}: upload failed, HTTP {error.code}\n"
                          f"{error.read().decode('utf-8', 'replace')}") from error
-    print(f"  put  {key}  ({len(body)} bytes, {content_type})")
+    print(f"  put  {key}  ({len(body)} bytes, {CONTENT_TYPES[suffix]})")
 
 
-def verify(path: Path) -> None:
+def verify(key: str, body: bytes) -> None:
     """Read the object back anonymously and compare it to what we sent.
 
     Anonymously on purpose. This is the same request a person downloading the
@@ -129,7 +149,6 @@ def verify(path: Path) -> None:
     that its own copy matched its own copy, which is why it once served a
     package that would not launch for a full day without anything going red.
     """
-    key = path.name
     url = PUBLIC_PREFIX + quote(key, safe="/")
     try:
         with urllib.request.urlopen(url, timeout=300) as response:
@@ -139,7 +158,7 @@ def verify(path: Path) -> None:
                          f"anonymous reader -- check the bucket is public-read\n"
                          f"{error.read().decode('utf-8', 'replace')}") from error
 
-    expected = hashlib.sha256(path.read_bytes()).hexdigest()
+    expected = hashlib.sha256(body).hexdigest()
     actual = hashlib.sha256(served).hexdigest()
     if expected != actual:
         raise SystemExit(f"{key}: served bytes are not the bytes we uploaded "
@@ -158,7 +177,7 @@ SELF_TEST_HEADERS = {
     "host": HOST,
     "content-type": "application/x-apple-diskimage",
     "content-length": "21299002",
-    "cache-control": "public, max-age=31536000, immutable",
+    "cache-control": IMMUTABLE,
     "content-disposition": 'attachment; filename="JoyHarness-macos-v0.1.8.dmg"',
 }
 SELF_TEST_KEY = "JoyHarness-macos-v0.1.8.dmg"
@@ -187,9 +206,41 @@ def self_test() -> int:
     return 0
 
 
+def alias_uploads(paths: list[Path], alias: str) -> list[tuple[str, bytes, str]]:
+    """The same build, published again under the name the website links to."""
+    packages = [path for path in paths if path.suffix == ".dmg"]
+    if len(packages) != 1:
+        raise SystemExit(f"--alias needs exactly one .dmg to alias, got {len(packages)}")
+    package = packages[0]
+
+    uploads = [(alias, package.read_bytes(), REVALIDATE)]
+
+    digest_file = package.with_name(package.name + ".sha256")
+    if digest_file.is_file():
+        # Rewritten to name the alias, not the build it came from. `shasum -c`
+        # compares the filename in the file against what is on disk, so a
+        # checksum reading JoyHarness-macos-v0.1.9.dmg fails for someone who
+        # downloaded JoyHarness.dmg -- and it fails as "no such file", which
+        # reads as a corrupted or tampered download rather than as a cosmetic
+        # naming mismatch.
+        digest = digest_file.read_text().strip().split()[0]
+        uploads.append((f"{alias}.sha256", f"{digest}  {alias}\n".encode(), REVALIDATE))
+    return uploads
+
+
 def main(argv: list[str]) -> int:
     if argv == ["--self-test"]:
         return self_test()
+
+    alias = ""
+    if "--alias" in argv:
+        index = argv.index("--alias")
+        if index + 1 >= len(argv):
+            print("--alias needs a filename", file=sys.stderr)
+            return 2
+        alias = argv[index + 1]
+        argv = argv[:index] + argv[index + 2:]
+
     if not argv:
         print(__doc__, file=sys.stderr)
         return 2
@@ -207,12 +258,18 @@ def main(argv: list[str]) -> int:
             print(f"{path}: not a file", file=sys.stderr)
             return 1
 
-    # Feed last, whatever order the caller listed them in. See the module note.
-    paths.sort(key=lambda path: path.suffix == ".xml")
+    uploads = [(path.name, path.read_bytes(),
+                REVALIDATE if path.suffix == ".xml" else IMMUTABLE)
+               for path in paths]
+    if alias:
+        uploads += alias_uploads(paths, alias)
 
-    for path in paths:
-        put(path, secret_id, secret_key)
-        verify(path)
+    # Feed last, whatever order the caller listed them in. See the module note.
+    uploads.sort(key=lambda upload: upload[0].endswith(".xml"))
+
+    for key, body, cache_control in uploads:
+        put(key, body, cache_control, secret_id, secret_key)
+        verify(key, body)
     return 0
 
 
