@@ -96,6 +96,36 @@ if [ "$build_flavor" = "production" ]; then
   fi
 fi
 
+# Bundled artwork has to stay sharp on a Retina screen: at least twice the
+# largest frame it is drawn in. The build scales the masters down to exactly
+# that, so this is the check that keeps a future "make it smaller" from
+# quietly making the interface look soft -- the kind of regression nobody
+# notices in a diff and everybody notices on screen.
+#
+# The frames come from macos/JoyHarnessNative; grep the resource name to find
+# where each is used.
+check_image_is_sharp_enough() {
+  local name="$1" needed_width="$2" needed_height="$3"
+  local file="$RESOURCES/$name.png"
+  if [ ! -f "$file" ]; then
+    echo "Missing bundled image: $file" >&2
+    exit 1
+  fi
+  local width height
+  width="$(sips -g pixelWidth "$file" | awk '/pixelWidth/{print $2}')"
+  height="$(sips -g pixelHeight "$file" | awk '/pixelHeight/{print $2}')"
+  if [ "$width" -lt "$needed_width" ] || [ "$height" -lt "$needed_height" ]; then
+    echo "$name.png is ${width}x${height}, below the ${needed_width}x${needed_height}" >&2
+    echo "needed to stay sharp at 2x. It would look soft on a Retina display." >&2
+    exit 1
+  fi
+}
+# 94pt icon, 390x320pt illustration, and the two controllers at 410pt tall.
+check_image_is_sharp_enough JoyHarnessAppIcon 188 188
+check_image_is_sharp_enough JoyConPair 780 640
+check_image_is_sharp_enough JoyConLeft 420 820
+check_image_is_sharp_enough JoyConRight 396 820
+
 echo "SwiftUI app verification passed."
 echo "Architectures: $(joyharness_binary_archs "$APP_PATH" | tr '\n' ' ')"
 echo "App: $APP_PATH"

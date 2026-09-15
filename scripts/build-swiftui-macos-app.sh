@@ -154,10 +154,28 @@ ditto "$SPARKLE_FRAMEWORK" "$FRAMEWORK_DIR/Sparkle.framework"
 echo "Swift binary architectures: $(lipo -archs "$EXECUTABLE_DIR/$EXECUTABLE_NAME")"
 
 SELECTED_ICON="$ROOT_DIR/assets/controller/app-icon.png"
-cp "$SELECTED_ICON" "$RESOURCE_DIR/JoyHarnessAppIcon.png"
-cp "$ROOT_DIR/assets/controller/joycon-left.png" "$RESOURCE_DIR/JoyConLeft.png"
-cp "$ROOT_DIR/assets/controller/joycon-right.png" "$RESOURCE_DIR/JoyConRight.png"
-cp "$ROOT_DIR/assets/controller/joycon-pair.png" "$RESOURCE_DIR/JoyConPair.png"
+
+# The artwork in assets/ stays at full resolution -- the .icns below is built
+# from it and needs every size up to 1024, and it is the master for anything
+# rendered later. What gets bundled is scaled to what the interface actually
+# shows, at 2x for Retina and no more.
+#
+# Copying the masters verbatim shipped 2.3MB of pixels to draw a 94pt icon and
+# a 390pt illustration: the app icon alone was a 1024x1024 image displayed at
+# 94pt, which is 5x more than the densest screen can use.
+#
+# Each number below is twice the largest frame the image appears in; grep the
+# name in macos/JoyHarnessNative to find it. verify-swiftui-macos-app.sh
+# checks the bundled sizes against those frames, so shrinking one too far
+# fails the build rather than going soft on a Retina display.
+scale_into() {
+  local source="$1" longest_edge="$2" destination="$3"
+  sips -Z "$longest_edge" "$source" --out "$destination" >/dev/null
+}
+scale_into "$SELECTED_ICON" 256 "$RESOURCE_DIR/JoyHarnessAppIcon.png"
+scale_into "$ROOT_DIR/assets/controller/joycon-left.png" 880 "$RESOURCE_DIR/JoyConLeft.png"
+scale_into "$ROOT_DIR/assets/controller/joycon-right.png" 906 "$RESOURCE_DIR/JoyConRight.png"
+scale_into "$ROOT_DIR/assets/controller/joycon-pair.png" 1024 "$RESOURCE_DIR/JoyConPair.png"
 cp "$ROOT_DIR/assets/controller/hotspots.json" "$RESOURCE_DIR/controller-hotspots.json"
 cp "$ROOT_DIR/config/user.json" "$RESOURCE_DIR/DefaultConfig.json"
 
