@@ -3,6 +3,14 @@
     <channel>
         <title>JoyHarness</title>
         <item>
+            <title>0.1.9</title>
+            <pubDate>Tue, 15 Sep 2026 15:18:15 +0000</pubDate>
+            <sparkle:version>0.1.9</sparkle:version>
+            <sparkle:shortVersionString>0.1.9</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://joyharness-1305183734.cos.ap-shanghai.myqcloud.com/JoyHarness-macos-v0.1.9.dmg" length="21299798" type="application/octet-stream" sparkle:edSignature="snZc6O3udqQq9vno3p83JgCZwXWAvmozQIFjJeHDzcPohV7d9kC198WkE4HMMsSyOn0OI0u1aEGrKOEsRX/0AA=="/>
+        </item>
+        <item>
             <title>0.1.8</title>
             <pubDate>Tue, 15 Sep 2026 09:34:37 +0000</pubDate>
             <sparkle:version>0.1.8</sparkle:version>
