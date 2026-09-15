@@ -126,6 +126,24 @@ check_image_is_sharp_enough JoyConPair 780 640
 check_image_is_sharp_enough JoyConLeft 420 820
 check_image_is_sharp_enough JoyConRight 396 820
 
+# The bundled runtime must carry the entitlement that lets libffi allocate
+# executable memory. Without it PyObjC's import spins forever under Hardened
+# Runtime and the backend never finishes starting -- it looks like a service
+# that "just doesn't run", with nothing in the log after the config line.
+# Signing is easy to get subtly wrong, and the symptom appears only on the
+# architecture you are not testing on, so it is checked on the built bundle.
+for runtime_arch in $(joyharness_bundled_runtime_archs "$APP_PATH"); do
+  runtime_binary="$(joyharness_runtime_executable "$APP_PATH" "$runtime_arch")"
+  if ! codesign -d --entitlements - --xml "$runtime_binary" 2>/dev/null \
+       | plutil -convert xml1 -o - - 2>/dev/null \
+       | grep -q 'allow-unsigned-executable-memory'; then
+    echo "The $runtime_arch runtime is missing" >&2
+    echo "com.apple.security.cs.allow-unsigned-executable-memory." >&2
+    echo "PyObjC will hang on import under Hardened Runtime." >&2
+    exit 1
+  fi
+done
+
 echo "SwiftUI app verification passed."
 echo "Architectures: $(joyharness_binary_archs "$APP_PATH" | tr '\n' ' ')"
 echo "App: $APP_PATH"

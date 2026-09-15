@@ -365,10 +365,37 @@ if [ -n "$CODESIGN_IDENTITY" ]; then
 
   RUNTIME_ROOT="$RESOURCE_DIR/Runtime"
   if [ -d "$RUNTIME_ROOT" ]; then
+    # The runtime is signed with two entitlements the app itself does not get.
+    # They live in macos/JoyHarnessRuntime.entitlements, which carries no
+    # comments of its own because codesign's parser rejects XML comments.
+    #
+    #   allow-unsigned-executable-memory, allow-jit
+    #
+    # PyObjC registers a few hundred struct types while importing, and each
+    # needs a libffi closure -- generated code. Hardened Runtime forbids
+    # mapping memory writable and executable, so ffi_closure_alloc falls back
+    # to writing a temp file and mapping that executable, which is forbidden
+    # too, and then retries across every candidate directory, forever.
+    #
+    # The runtime then starts, logs its config path, and never reaches its
+    # first real line of work. That is precisely how it failed on an Intel
+    # Mac: sampling the stuck process showed it inside
+    # ffi_closure_alloc -> dlmmap -> mkostemp/mmap/close, spinning. Apple
+    # Silicon takes a different path in libffi and did not show it, which is
+    # why it survived local testing.
+    #
+    # Hardened Runtime is not optional here -- notarization requires it -- so
+    # the runtime gets the entitlement covering what libffi actually does.
+    RUNTIME_ENTITLEMENTS="$ROOT_DIR/macos/JoyHarnessRuntime.entitlements"
+    [ -f "$RUNTIME_ENTITLEMENTS" ] || {
+      echo "Missing $RUNTIME_ENTITLEMENTS" >&2
+      exit 1
+    }
+    RUNTIME_CODESIGN_FLAGS=("${CODESIGN_FLAGS[@]}" --entitlements "$RUNTIME_ENTITLEMENTS")
     echo "Signing the bundled runtime..."
     nested_count=0
     while IFS= read -r macho; do
-      codesign "${CODESIGN_FLAGS[@]}" "$macho"
+      codesign "${RUNTIME_CODESIGN_FLAGS[@]}" "$macho"
       nested_count=$((nested_count + 1))
     done < <(
       find "$RUNTIME_ROOT" -type f \
@@ -385,7 +412,7 @@ if [ -n "$CODESIGN_IDENTITY" ]; then
     # are intact, which is not worth depending on.
     while IFS= read -r version_dir; do
       [ -n "$version_dir" ] || continue
-      codesign "${CODESIGN_FLAGS[@]}" "$version_dir"
+      codesign "${RUNTIME_CODESIGN_FLAGS[@]}" "$version_dir"
       echo "Signed framework: ${version_dir#"$RESOURCE_DIR/"}"
     done < <(
       find "$RUNTIME_ROOT" -type d -name '*.framework' \
