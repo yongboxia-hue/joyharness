@@ -8,7 +8,7 @@
             <sparkle:version>0.1.8</sparkle:version>
             <sparkle:shortVersionString>0.1.8</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/yongboxia-hue/joyharness/releases/download/v0.1.8/JoyHarness-macos-v0.1.8.dmg" length="21107168" type="application/octet-stream" sparkle:edSignature="EZbyEZ1cAJTmqyIluzGAIwBUSusVsc0shA6n6TII0JEcT9yk4HDu1qdsRlGrM5xW5onqIk/GO307MDQTcbX3Cg=="/>
+            <enclosure url="https://github.com/yongboxia-hue/joyharness/releases/download/v0.1.8/JoyHarness-macos-v0.1.8.dmg" length="21299002" type="application/octet-stream" sparkle:edSignature="AEsDdwWuMcXKy1a3WdVZUn0AC3I39cXbsa6FrLYGFVmcKmyZKGIcN5ehrxZhgN6aRZ1jqFZ9QEKjolVhQwcrBg=="/>
         </item>
         <item>
             <title>0.1.7</title>
