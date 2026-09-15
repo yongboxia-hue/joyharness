@@ -84,11 +84,37 @@ final class RuntimeManager {
         stopping = true
         if task.isRunning {
             task.terminate()
-            task.waitUntilExit()
+            // Bounded, then insist.
+            //
+            // This was waitUntilExit(), which has no timeout, called from
+            // applicationWillTerminate on the main thread -- so a runtime that
+            // did not exit took the whole app down with it and "quit" simply
+            // hung. A runtime can stall on shutdown for reasons outside its
+            // control: a reader thread parked inside hidapi's C code keeps the
+            // interpreter from finishing, and that needs a real device to
+            // happen, which is why it shows up on a machine with a Joy-Con
+            // paired and not on one without.
+            //
+            // Leaving a killed runtime behind is recoverable -- the next
+            // launch clears leftovers. An app that cannot be quit is not.
+            if !waitForExit(task, timeout: 5) {
+                NSLog("JoyHarness: runtime did not exit on request; killing it")
+                kill(task.processIdentifier, SIGKILL)
+                _ = waitForExit(task, timeout: 2)
+            }
         }
         process = nil
         try? logHandle?.close()
         logHandle = nil
+    }
+
+    /// Wait for a process to exit, up to a deadline. True if it did.
+    private func waitForExit(_ task: Process, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while task.isRunning && Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+        return !task.isRunning
     }
 
     /// Kill any runtime already using this data directory that is not our own.

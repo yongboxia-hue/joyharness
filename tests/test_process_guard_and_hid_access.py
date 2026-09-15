@@ -289,6 +289,52 @@ class StatusScratchFileTests(unittest.TestCase):
                 importlib.reload(runtime_ipc)
 
 
+class SignalHandlerSafetyTests(unittest.TestCase):
+    """A signal must never be handled by something that takes a lock.
+
+    0.1.8 logged from its SIGTERM handler. logging takes a lock, the readers
+    log every two seconds, and a signal arriving while that lock was held left
+    the handler waiting on a lock only the interrupted frame could release.
+    The runtime never exited and the app, which waited on it without a
+    timeout, hung on quit -- reported as "退出就会卡死" with a macOS hang
+    report showing the main thread parked in waitUntilExit.
+    """
+
+    def test_handler_exits_even_while_the_logging_lock_is_held(self) -> None:
+        import logging as logging_module
+        import subprocess
+
+        program = """
+import logging, os, signal, sys, threading, time
+sys.path.insert(0, %r)
+logging.basicConfig(level=logging.INFO, stream=sys.stderr)
+from src.process_guard import record_lifecycle
+record_lifecycle()
+
+def hog():
+    logging._lock.acquire()
+    for handler in logging.getLogger().handlers:
+        handler.lock.acquire()
+    time.sleep(120)
+
+threading.Thread(target=hog, daemon=True).start()
+time.sleep(0.4)
+os.kill(os.getpid(), signal.SIGTERM)
+time.sleep(10)
+os._exit(99)   # reached only if the handler deadlocked
+""" % str(Path(__file__).resolve().parent.parent)
+
+        result = subprocess.run([sys.executable, "-c", program],
+                                capture_output=True, text=True, timeout=120)
+        self.assertNotEqual(
+            result.returncode, 99,
+            "the signal handler blocked while the logging lock was held; "
+            "it must not take locks",
+        )
+        self.assertEqual(result.returncode, 128 + 15,
+                         f"expected exit on SIGTERM, got {result.returncode}")
+
+
 class _StubRuntime:
     """Just enough runtime for one status publish."""
 

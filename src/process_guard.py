@@ -26,6 +26,7 @@ import os
 import signal
 import sys
 import threading
+import time
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,10 @@ logger = logging.getLogger(__name__)
 # the app can tell a duplicate launch apart from a genuine failure -- and so
 # this never reads as a crash in a log.
 EXIT_ALREADY_RUNNING = 3
+
+# Exit code for "asked to stop, but shutdown stalled and we forced it".
+# Distinct so a forced exit is not read as a crash.
+EXIT_SHUTDOWN_STALLED = 4
 
 # How often to check whether the parent is still there. Long enough to cost
 # nothing, short enough that an orphan cannot outlive the app by much.
@@ -136,20 +141,63 @@ def record_lifecycle() -> None:
         os.getpid(), os.getppid(), sys.version.split()[0],
     )
 
-    def _log_signal(signum, _frame):
-        name = signal.Signals(signum).name
-        logger.warning(
-            "Runtime stopping on %s during startup (pid=%s). Something asked it "
-            "to quit before it finished starting -- usually the app restarting it.",
-            name, os.getpid(),
-        )
-        # 128+n is the shell convention for "died on signal n", and what the
-        # app sees as the termination status.
-        sys.exit(128 + signum)
+    def _note_signal(signum, _frame):
+        # Nothing here may take a lock.
+        #
+        # This used to call logger.warning() and sys.exit(). Both are unsafe
+        # from a signal handler and the first one hung 0.1.8: logging takes a
+        # lock, the readers log every two seconds, and a SIGTERM arriving while
+        # that lock was held left the handler waiting for a lock only the
+        # interrupted frame could release. The runtime then never exited, and
+        # the app -- which waited for it without a timeout -- hung on quit.
+        #
+        # os.write straight to fd 2 is async-signal-safe, and os._exit leaves
+        # immediately rather than unwinding through cleanup that takes more
+        # locks. The cost is that atexit and buffered output are skipped, which
+        # is the right trade for a process being told to stop.
+        try:
+            os.write(2, f"Runtime stopping on signal {signum} (pid {os.getpid()})\n".encode())
+        except Exception:
+            pass
+        os._exit(128 + signum)
 
     for sig in (signal.SIGTERM, signal.SIGINT):
-        signal.signal(sig, _log_signal)
+        signal.signal(sig, _note_signal)
 
     @atexit.register
     def _log_exit() -> None:
         logger.info("Runtime exiting: pid=%s", os.getpid())
+
+
+def arm_shutdown_watchdog(stop_event: threading.Event, grace: float = 6.0) -> None:
+    """Force the process out if a requested shutdown does not finish.
+
+    Every thread here is a daemon and every join has a timeout, so shutdown
+    should always complete -- except that a daemon thread parked inside
+    hidapi's C code does not come back for the interpreter to collect, and
+    interpreter shutdown then waits on it. The process stays alive, and the
+    app waiting on it used to wait forever.
+
+    Reaching the timeout means something is wedged that we cannot unwind from
+    inside, so this skips interpreter shutdown entirely rather than trying.
+    """
+
+    def _loop() -> None:
+        # Wait for shutdown to begin, then give it the grace period. If the
+        # process were going to exit on its own it would have done so by now
+        # and taken this daemon thread with it, so reaching the next line
+        # means it did not.
+        stop_event.wait()
+        time.sleep(grace)
+        logger.error(
+            "Shutdown did not finish within %.0fs; forcing exit. A reader thread "
+            "is most likely parked inside the HID library.", grace,
+        )
+        for handler in list(logging.getLogger().handlers):
+            try:
+                handler.flush()
+            except Exception:
+                pass
+        os._exit(EXIT_SHUTDOWN_STALLED)
+
+    threading.Thread(target=_loop, name="JoyHarnessShutdownWatchdog", daemon=True).start()

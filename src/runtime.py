@@ -21,7 +21,7 @@ from typing import Callable
 from .config_loader import get_platform_config_path, load_config
 from .joycon_reader import connected_controllers
 from .keep_alive import KeepAliveManager
-from .process_guard import watch_parent
+from .process_guard import arm_shutdown_watchdog, watch_parent
 from .key_mapper import KeyMapper
 from .side_button_reader import RawJoyConReader
 
@@ -103,6 +103,9 @@ class JoyHarnessRuntime:
         # run applicationWillTerminate. Without it the runtime is reparented
         # to launchd and keeps holding the controller and the IPC files.
         watch_parent(self.stop_event)
+        # And make sure a stop request always ends in an exit, even if a
+        # thread is wedged somewhere we cannot unwind from.
+        arm_shutdown_watchdog(self.stop_event)
         # Always create both -- a controller that isn't plugged in yet just
         # means its reader sits waiting for the device (RawJoyConReader
         # already retries on its own), not that its mapper doesn't exist.
