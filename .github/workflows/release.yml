@@ -29,6 +29,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Refuse a tag that disagrees with the tree
+        # The tag names the asset and the release; the tree decides which
+        # version gets compiled in. Nothing tied the two together, so tagging
+        # v0.1.9 on a tree still saying 0.1.8 produced a file named v0.1.9
+        # containing 0.1.8 -- and because Sparkle compares CFBundleVersion,
+        # that release would be built, signed, notarized, published,
+        # announced, and offered to nobody, with every step green.
+        #
+        # First step after checkout on purpose: the mistake costs nothing here
+        # and fifteen minutes of building and notarizing anywhere later.
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          tagged="${GITHUB_REF_NAME#v}"
+          built="$(sed -n 's/.*JOYHARNESS_VERSION:-\([0-9.]*\)}.*/\1/p' \
+            scripts/build-swiftui-macos-app.sh)"
+          if [ "$tagged" != "$built" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match what this tree builds ($built)." >&2
+            echo "Bump CHANGELOG.md, src/constants.py and" >&2
+            echo "scripts/build-swiftui-macos-app.sh together, or tag v$built." >&2
+            exit 1
+          fi
+          echo "Tag and tree agree on $built."
+
       - name: Set up Python
         # Pinned: the runner's default Python has no prebuilt pygame wheel and
         # tries to compile SDL from source.
