@@ -217,6 +217,12 @@ def main() -> None:
         handlers=handlers,
     )
 
+    # Before anything that can block or be killed: say who we are, and make a
+    # signal during startup leave a line behind.
+    from .process_guard import record_lifecycle
+
+    record_lifecycle()
+
     # Permission check
     if not args.native_client and not args.no_admin_warn and not has_required_permissions():
         print(get_permission_warning())

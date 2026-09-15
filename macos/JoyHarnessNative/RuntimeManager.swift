@@ -26,6 +26,7 @@ final class RuntimeManager {
         do {
             let executable = try runtimeExecutableURL()
             let configURL = try prepareDataDirectory()
+            terminateRuntimesNotOwnedByUs(configPath: configURL.path)
             let logsURL = state.runtimeURL.appendingPathComponent("Logs", isDirectory: true)
             let logURL = logsURL.appendingPathComponent("runtime.log")
             rotateLogIfLarge(at: logURL)
@@ -88,6 +89,62 @@ final class RuntimeManager {
         process = nil
         try? logHandle?.close()
         logHandle = nil
+    }
+
+    /// Kill any runtime already using this data directory that is not our own.
+    ///
+    /// Upgrades leave them behind. The app terminates its child on a clean
+    /// quit, but replacing JoyHarness.app -- by dragging it over the old one,
+    /// or through the updater -- does not go through that path, so the
+    /// previous version's runtime keeps running, keeps reading the Joy-Cons
+    /// and keeps rewriting status.json. The new one then starts beside it.
+    ///
+    /// The runtime's own single-instance lock does not help here: a runtime
+    /// from before that lock existed never takes it, so it is invisible to
+    /// every later version. Only the app can see it, and only by looking at
+    /// the process list.
+    ///
+    /// Matching is on the --config path, so this touches exactly the
+    /// processes that share this installation's data directory and nothing
+    /// else -- a development runtime pointed at its own directory keeps
+    /// running.
+    private func terminateRuntimesNotOwnedByUs(configPath: String) {
+        let ours = process?.processIdentifier
+        let listing = Process()
+        listing.executableURL = URL(fileURLWithPath: "/bin/ps")
+        listing.arguments = ["-Ao", "pid=,command="]
+        let pipe = Pipe()
+        listing.standardOutput = pipe
+        guard (try? listing.run()) != nil else { return }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        listing.waitUntilExit()
+        guard let text = String(data: data, encoding: .utf8) else { return }
+
+        var stale: [pid_t] = []
+        for line in text.split(separator: "\n") {
+            guard line.contains("JoyHarnessRuntime"), line.contains(configPath) else { continue }
+            let trimmed = line.drop(while: { $0 == " " })
+            guard let pidText = trimmed.split(separator: " ", maxSplits: 1).first,
+                  let pid = pid_t(pidText), pid != ours, pid != getpid() else { continue }
+            stale.append(pid)
+        }
+        guard !stale.isEmpty else { return }
+
+        for pid in stale {
+            NSLog("JoyHarness: terminating a leftover runtime (pid \(pid))")
+            kill(pid, SIGTERM)
+        }
+        // Give them a moment to release the Joy-Cons and the IPC lock, then
+        // insist. A leftover that ignores SIGTERM would otherwise keep the
+        // controller and make the new runtime look broken.
+        let deadline = Date().addingTimeInterval(3)
+        while Date() < deadline && stale.contains(where: { kill($0, 0) == 0 }) {
+            Thread.sleep(forTimeInterval: 0.1)
+        }
+        for pid in stale where kill(pid, 0) == 0 {
+            NSLog("JoyHarness: leftover runtime \(pid) ignored SIGTERM; killing")
+            kill(pid, SIGKILL)
+        }
     }
 
     /// Why the backend stopped, in terms the user can act on.

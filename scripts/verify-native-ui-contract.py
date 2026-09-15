@@ -507,6 +507,27 @@ for key in ("SUFeedURL", "SUPublicEDKey"):
     check(key in build_script, f"the Info.plist no longer carries {key}",
           "without both, updates are either never found or never verified")
 
+# Upgrades leave the previous version's runtime running: replacing the app
+# bundle never runs applicationWillTerminate, and a runtime from before the
+# single-instance lock existed never takes that lock, so no later runtime can
+# see it. Only the app can, and only by looking at the process list -- so the
+# start path has to do that before launching its own.
+check("terminateRuntimesNotOwnedByUs(configPath: configURL.path)" in runtime_manager_src,
+      "the app no longer clears leftover runtimes before starting its own",
+      "an old version's runtime keeps the controller and keeps rewriting status.json")
+
+# A status file that is fresh but unparseable is not a stopped service.
+# Reporting it as one sent the user to restart a runtime that was alive.
+check("hasReportedUnreadableStatus = true" in app_model_paths,
+      "an unreadable status.json reads as 'service not running' again",
+      "that sends the user to the restart button for a service that is running")
+
+# A runtime that dies during startup has to leave a reason behind.
+main_src = read("src", "main.py")
+check("record_lifecycle()" in main_src,
+      "the runtime no longer records its pid, parent and exit",
+      "a killed startup then leaves one log line and no way to tell why it stopped")
+
 # --------------------------------------------------------------------------
 if FAILURES:
     print(f"Native UI contract verification FAILED ({len(FAILURES)} of {CHECKS} checks):")

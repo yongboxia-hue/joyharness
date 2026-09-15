@@ -263,11 +263,32 @@ final class AppState: ObservableObject {
     /// mistaken for live state.
     private static let statusFreshness: TimeInterval = 4
 
+    /// So the "unreadable status" note is written once per episode rather than
+    /// twice a second for as long as it lasts.
+    private var hasReportedUnreadableStatus = false
+
     func refreshStatus() {
         let statusURL = ipcURL.appendingPathComponent("status.json")
         let writtenAt = (try? statusURL.resourceValues(forKeys: [.contentModificationDateKey]))?
             .contentModificationDate
         let stale = writtenAt.map { Date().timeIntervalSince($0) > Self.statusFreshness } ?? true
+
+        // A file that exists and is fresh but will not parse is not the same
+        // thing as a service that is not running, and reporting it as one sent
+        // the user to the restart button for a runtime that was alive. Say so
+        // instead, once, so the next diagnostic package carries the reason.
+        if !stale,
+           let data = try? Data(contentsOf: statusURL),
+           (try? JSONSerialization.jsonObject(with: data)) == nil {
+            if !hasReportedUnreadableStatus {
+                hasReportedUnreadableStatus = true
+                NSLog("JoyHarness: status.json is fresh but unreadable (\(data.count) bytes)")
+                lastError = "后台服务的状态文件读不出来。多半是同时跑着另一个旧版本的服务；"
+                    + "退出 JoyHarness 再打开一次通常能解决。"
+            }
+        } else if hasReportedUnreadableStatus {
+            hasReportedUnreadableStatus = false
+        }
 
         guard
             !stale,

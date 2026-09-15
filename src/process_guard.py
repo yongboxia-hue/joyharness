@@ -19,9 +19,12 @@ which run applicationWillTerminate.
 
 from __future__ import annotations
 
+import atexit
 import fcntl
 import logging
 import os
+import signal
+import sys
 import threading
 from pathlib import Path
 
@@ -112,3 +115,41 @@ def watch_parent(stop_event: threading.Event) -> threading.Thread | None:
     thread = threading.Thread(target=_loop, name="JoyHarnessParentWatch", daemon=True)
     thread.start()
     return thread
+
+
+def record_lifecycle() -> None:
+    """Log who this process is, and why it stops.
+
+    A runtime killed during startup used to leave exactly one line -- the
+    config path -- and nothing else: no exit code, no signal, no parent. Three
+    of those in a 2026-09-15 diagnostic package were indistinguishable from a
+    runtime that had crashed, hung, or never started, and the actual cause
+    (the app terminating it) left no trace at all.
+
+    The handlers go in before the heavy imports on purpose. The runtime
+    installs its own once it is running, which supersedes these; until then a
+    SIGTERM lands on Python's default handler and dies silently, which is
+    exactly the window the three lost processes died in.
+    """
+    logger.info(
+        "Runtime starting: pid=%s ppid=%s python=%s",
+        os.getpid(), os.getppid(), sys.version.split()[0],
+    )
+
+    def _log_signal(signum, _frame):
+        name = signal.Signals(signum).name
+        logger.warning(
+            "Runtime stopping on %s during startup (pid=%s). Something asked it "
+            "to quit before it finished starting -- usually the app restarting it.",
+            name, os.getpid(),
+        )
+        # 128+n is the shell convention for "died on signal n", and what the
+        # app sees as the termination status.
+        sys.exit(128 + signum)
+
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(sig, _log_signal)
+
+    @atexit.register
+    def _log_exit() -> None:
+        logger.info("Runtime exiting: pid=%s", os.getpid())

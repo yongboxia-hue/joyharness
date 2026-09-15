@@ -304,5 +304,61 @@ class _StubRuntime:
         return None
 
 
+class LifecycleLoggingTests(unittest.TestCase):
+    """A runtime that is killed must say so before it goes.
+
+    Three runtimes in the 2026-09-15 diagnostic package each left exactly one
+    line -- the config path -- and nothing about why they stopped. That is
+    indistinguishable from a crash, a hang, or a runtime that never started,
+    and it cost a whole round of diagnosis.
+    """
+
+    def _run_until(self, marker: str, then_signal=None):
+        """Start the runtime, wait for a marker, optionally signal it."""
+        import subprocess, signal as sig
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory) / "user.json"
+            config.write_text((Path(__file__).resolve().parent.parent
+                               / "config" / "user.json").read_text(), encoding="utf-8")
+            log = Path(directory) / "out.log"
+            env = dict(os.environ, JOYHARNESS_IPC_DIR=str(Path(directory) / "ipc"))
+            with log.open("w") as sink:
+                child = subprocess.Popen(
+                    [sys.executable, "-m", "src", "--native-client",
+                     "--no-admin-warn", "--config", str(config)],
+                    stdout=sink, stderr=sink, env=env,
+                    cwd=str(Path(__file__).resolve().parent.parent),
+                )
+            deadline = time.time() + 60
+            while time.time() < deadline:
+                if marker in log.read_text(errors="replace"):
+                    break
+                if child.poll() is not None:
+                    break
+                time.sleep(0.05)
+            if then_signal is not None:
+                child.send_signal(then_signal)
+            try:
+                child.wait(timeout=60)
+            except Exception:
+                child.kill()
+                child.wait(timeout=30)
+            return child.returncode, log.read_text(errors="replace")
+
+    def test_start_records_pid_and_parent(self) -> None:
+        import signal as sig
+        _, output = self._run_until("Runtime starting", then_signal=sig.SIGTERM)
+        self.assertIn("Runtime starting", output,
+                      "a runtime that starts leaves no record of itself")
+        self.assertIn(f"ppid={os.getpid()}", output,
+                      "the parent is not recorded, so an orphan cannot be told from a child")
+
+    def test_exit_is_recorded(self) -> None:
+        import signal as sig
+        _, output = self._run_until("Native client runtime active", then_signal=sig.SIGTERM)
+        self.assertIn("Runtime exiting", output,
+                      "a runtime that stops leaves no record of stopping")
+
+
 if __name__ == "__main__":
     unittest.main()
