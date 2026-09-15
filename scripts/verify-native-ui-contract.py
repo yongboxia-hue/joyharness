@@ -507,6 +507,29 @@ for key in ("SUFeedURL", "SUPublicEDKey"):
     check(key in build_script, f"the Info.plist no longer carries {key}",
           "without both, updates are either never found or never verified")
 
+# Presence was the whole check, which left the feed address the one string in
+# the bundle that nothing read. It is compiled into every copy we ship and
+# cannot be corrected for one already installed, so a typo here publishes a
+# build whose updater talks to nothing -- every check green, every install
+# frozen on the version it arrived with. The feed and the packages it
+# announces are published together by release.yml; change one address without
+# the other and the feed parses while every download in it 404s. So read the
+# value, and check it against the workflow that does the publishing.
+release_workflow = read(".github", "workflows", "release.yml")
+feed_match = re.search(r"<key>SUFeedURL</key>\s*\n\s*<string>([^<]*)</string>", build_script)
+check(feed_match is not None,
+      "SUFeedURL is no longer a literal string in the Info.plist",
+      "its value cannot be checked, and a feed that resolves to nothing fails silently")
+if feed_match:
+    feed_url = feed_match.group(1)
+    check(feed_url.startswith("https://"),
+          f"SUFeedURL is not HTTPS ({feed_url})",
+          "Sparkle refuses a plaintext feed, so no update is ever offered")
+    feed_prefix = feed_url.rsplit("/", 1)[0] + "/"
+    check(feed_prefix in release_workflow,
+          f"SUFeedURL points at {feed_prefix}, which release.yml never publishes to",
+          "the feed and the packages it announces have to land on the same host")
+
 # Upgrades leave the previous version's runtime running: replacing the app
 # bundle never runs applicationWillTerminate, and a runtime from before the
 # single-instance lock existed never takes that lock, so no later runtime can

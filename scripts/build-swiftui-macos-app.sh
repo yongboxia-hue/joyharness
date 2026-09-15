@@ -277,14 +277,21 @@ cat > "$APP_PATH/Contents/Info.plist" <<PLIST
   <string>$BUILD_FLAVOR</string>
   <key>JoyHarnessRuntimePath</key>
   <string>$RUNTIME_DIR</string>
-  <!-- Sparkle. The feed lives on a URL rather than in code so it can move
-       (to the site's own domain, say) without shipping a new build just to
-       change where the next one is announced. SUPublicEDKey is the public
-       half of the update-signing key: an update that is not signed by the
-       matching private key is refused, so a tampered feed or a replaced
-       download cannot install anything. -->
+  <!-- Sparkle. This address is compiled into every copy we ship and cannot
+       be changed for one already installed, which is exactly why it points
+       at the feed and not at a package: the enclosure URL inside the feed
+       can be repointed at another host whenever it has to move, and every
+       install already out there follows along without being rebuilt.
+       It left raw.githubusercontent.com because mainland China cannot
+       reliably reach it -- self-hosting the download bought the first
+       install and nothing after it, so anyone who installed from the site
+       stayed on the version they first got. SUPublicEDKey is the public
+       half of the update-signing key: an update not signed by the matching
+       private key is refused, so a tampered feed or a swapped download
+       installs nothing. That signature is what makes it safe to serve both
+       of these from a bucket rather than from the release page. -->
   <key>SUFeedURL</key>
-  <string>https://raw.githubusercontent.com/yongboxia-hue/joyharness/main/appcast.xml</string>
+  <string>https://joyharness-1305183734.cos.ap-shanghai.myqcloud.com/appcast.xml</string>
   <key>SUPublicEDKey</key>
   <string>3iMkS5rtHsm6hfNvB/HmjF1nK1D70VFfMJIHi3yzLHc=</string>
   <key>SUEnableAutomaticChecks</key>

@@ -179,16 +179,15 @@ jobs:
           gh release upload "${{ github.ref_name }}" \
             "$ASSET_PATH" "$ASSET_PATH.sha256" --clobber
 
-      - name: Publish the update feed
+      - name: Generate the update feed
         # Only for a tag: appcast.xml announces releases, and a manual run has
         # not produced one. Without the key the step says so and stops rather
-        # than committing a feed with no signature -- Sparkle refuses unsigned
+        # than publishing a feed with no signature -- Sparkle refuses unsigned
         # updates, so that would leave every client unable to update while
         # looking like it worked.
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           if [ -z "${SPARKLE_ED_PRIVATE_KEY:-}" ]; then
@@ -201,11 +200,39 @@ jobs:
           staging="$RUNNER_TEMP/appcast-input"
           mkdir -p "$staging"
           cp "$ASSET_PATH" "$staging/"
+          # This prefix and SUFeedURL have to name the same host: the feed and
+          # the packages it announces are served together, and
+          # verify-native-ui-contract.py fails the build if they drift apart.
           ./build/sparkle/bin/generate_appcast \
             --ed-key-file "$keyfile" \
-            --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/" \
+            --download-url-prefix "https://joyharness-1305183734.cos.ap-shanghai.myqcloud.com/" \
             -o appcast.xml "$staging"
           rm -f "$keyfile"
+
+      - name: Publish to the download bucket
+        # The step that actually delivers the release. GitHub above keeps the
+        # archival copy and the fallback, but the updater and the website both
+        # read the bucket, because mainland China cannot reliably reach
+        # GitHub -- and the updater only ever talked to GitHub, so anyone who
+        # could not reach it stayed on the version they first installed.
+        #
+        # It runs before the feed is recorded below, so a failure here leaves
+        # nothing anywhere announcing a release that cannot be downloaded.
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          COS_SECRET_ID: ${{ secrets.COS_SECRET_ID }}
+          COS_SECRET_KEY: ${{ secrets.COS_SECRET_KEY }}
+        run: |
+          python3 scripts/publish-to-cos.py \
+            "$ASSET_PATH" "$ASSET_PATH.sha256" appcast.xml
+
+      - name: Record the feed in the repository
+        # Book-keeping, not delivery: the copy clients read is the one in the
+        # bucket, published above. Kept because what was announced, and when,
+        # is worth having in the history.
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add appcast.xml
@@ -217,8 +244,8 @@ jobs:
             # upload take about fifteen minutes, which is long enough for
             # someone to push. Rebasing onto whatever main is now keeps a
             # release from failing at the last step over an unrelated commit,
-            # with everything already published and only the feed missing --
-            # which is exactly how v0.1.7 failed.
+            # with everything already published -- which is exactly how v0.1.7
+            # failed.
             git fetch origin main
             git rebase origin/main
             git push origin HEAD:main

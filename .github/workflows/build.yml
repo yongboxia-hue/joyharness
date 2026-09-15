@@ -48,3 +48,11 @@ jobs:
       # long-press threshold, rather than grepping for lines that mention them.
       - name: UI contract check
         run: .venv/bin/python scripts/verify-native-ui-contract.py
+
+      - name: Release publishing signature check
+        # Needs no credentials, so it belongs here rather than only in the
+        # release workflow: a broken signature format otherwise stays invisible
+        # until a tag is pushed and the build has already been signed and
+        # notarized, and it surfaces there as SignatureDoesNotMatch -- which
+        # reads as a bad key, not as a code change.
+        run: python3 scripts/publish-to-cos.py --self-test
