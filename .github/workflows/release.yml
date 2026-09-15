@@ -166,6 +166,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Create the release if the tag does not have one yet. Uploading
+          # alone assumed someone had already made it by hand, so the first
+          # fully automatic release -- a tag pushed with nothing else done --
+          # would fail at the last step with everything already built,
+          # signed and notarized.
+          if ! gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
+            gh release create "${{ github.ref_name }}" \
+              --title "${{ github.ref_name }}" \
+              --notes "See CHANGELOG.md."
+          fi
           gh release upload "${{ github.ref_name }}" \
             "$ASSET_PATH" "$ASSET_PATH.sha256" --clobber
 
