@@ -265,33 +265,17 @@ jobs:
             -o appcast.xml "$staging"
           rm -f "$keyfile"
 
-      - name: Publish to the download bucket
-        # The step that actually delivers the release. GitHub above keeps the
-        # archival copy and the fallback, but the updater and the website both
-        # read the bucket, because mainland China cannot reliably reach
-        # GitHub -- and the updater only ever talked to GitHub, so anyone who
-        # could not reach it stayed on the version they first installed.
-        #
-        # It runs before the feed is recorded below, so a failure here leaves
-        # nothing anywhere announcing a release that cannot be downloaded.
-        if: startsWith(github.ref, 'refs/tags/v')
-        env:
-          COS_SECRET_ID: ${{ secrets.COS_SECRET_ID }}
-          COS_SECRET_KEY: ${{ secrets.COS_SECRET_KEY }}
-        run: |
-          # --alias publishes the same build a second time as JoyHarness.dmg.
-          # The website links to that fixed address, so a release no longer
-          # needs a matching edit and deploy in the website repository just to
-          # move a version number -- and that edit being manual was the last
-          # step of a release that a human still had to remember.
-          python3 scripts/publish-to-cos.py \
-            "$ASSET_PATH" "$ASSET_PATH.sha256" appcast.xml \
-            --alias JoyHarness.dmg
-
       - name: Record the feed in the repository
-        # Book-keeping, not delivery: the copy clients read is the one in the
-        # bucket, published above. Kept because what was announced, and when,
-        # is worth having in the history.
+        # This commit is how the signed feed leaves CI. Publishing to the
+        # bucket used to happen here too and cannot: the runner is not in
+        # China and the bucket is, and a measured 8MB took four timeouts of
+        # 143s to fail, against 1.2s from a machine inside the country. A
+        # Lighthouse bucket cannot be put behind global acceleration, so there
+        # is no version of this step that works from here.
+        #
+        # scripts/mirror-release-to-cos.sh does it instead, from a machine on
+        # the right side of that link, and takes the feed from this commit --
+        # so this step has to succeed for a release to be finishable.
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           set -euo pipefail
