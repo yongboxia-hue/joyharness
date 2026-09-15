@@ -5,7 +5,7 @@ struct ConnectionView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 20) {
                 PageTitle(
                     "连接",
                     subtitle: "Joy-Con 连上之后，按键就会发出你配置的快捷键。",
@@ -30,56 +30,57 @@ struct ConnectionView: View {
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
 
-                Text("设备")
-                    .font(.system(size: 15, weight: .semibold))
-
-                HStack(spacing: 14) {
-                    controllerCard(
+                // Every section below is one group of rows on one surface. The
+                // two controllers used to be two floating cards side by side
+                // and the mappings a grid of cards inside another card; both
+                // put a second grey on top of a nearly identical first.
+                section(JoySectionHeader("设备")) {
+                    controllerRow(
                         name: "左 Joy-Con",
                         imageName: ControllerSide.left.imageName,
                         status: state.leftController
                     )
-                    controllerCard(
+                    JoyRowDivider(inset: 60)
+                    controllerRow(
                         name: "右 Joy-Con",
                         imageName: ControllerSide.right.imageName,
                         status: state.rightController
                     )
                 }
 
-                HStack {
-                    Text("常用按键")
-                        .font(.system(size: 15, weight: .semibold))
-                    Spacer()
-                    Button("全部配置") { state.selectedPage = .mapping }
-                        .buttonStyle(SecondaryButtonStyle())
-                }
-
-                JoyCard {
+                section(
+                    JoySectionHeader(
+                        "常用按键",
+                        trailing: AnyView(
+                            Button("全部配置") { state.selectedPage = .mapping }
+                                .buttonStyle(JoyLinkButtonStyle())
+                        )
+                    )
+                ) {
                     if previewMappings.isEmpty {
                         Text("还没有可显示的按键。")
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 12)
                     } else {
-                        LazyVGrid(
-                            columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3),
-                            spacing: 10
-                        ) {
-                            ForEach(previewMappings) { item in
-                                mappingPreview(item)
+                        // One row per mapping, so a fifth entry cannot leave a
+                        // hole in a three-column grid the way it used to.
+                        ForEach(Array(previewMappings.enumerated()), id: \.element.id) { index, item in
+                            if index > 0 {
+                                JoyRowDivider(inset: 58)
                             }
+                            mappingRow(item)
                         }
                     }
                 }
 
-                Text("按键响应")
-                    .font(.system(size: 15, weight: .semibold))
-
-                // Keyed off availability, not just `paused`: without the
-                // Accessibility grant no key can be sent at all, and this row
-                // still read 正在响应 · 按键正在发出快捷键 on the same screen as
-                // the red 还需要完成系统授权 banner.
-                JoyCard {
+                section(JoySectionHeader("按键响应")) {
+                    // Keyed off availability, not just `paused`: without the
+                    // Accessibility grant no key can be sent at all, and this row
+                    // still read 正在响应 · 按键正在发出快捷键 on the same screen as
+                    // the red 还需要完成系统授权 banner.
                     InfoRow(
                         symbol: responseSymbol,
                         title: responseTitle,
@@ -93,11 +94,25 @@ struct ConnectionView: View {
                             .disabled(!state.serviceRunning || state.isChangingPauseState)
                         )
                     )
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
                 }
             }
             .animation(JoyMotion.stateChange, value: state.availability)
             .padding(30)
             .frame(maxWidth: 980, alignment: .leading)
+        }
+    }
+
+    /// A header plus the group it labels, kept together so every section on the
+    /// page gets the same gap between the two.
+    private func section<Content: View>(
+        _ header: JoySectionHeader,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            header
+            JoyGroup { content() }
         }
     }
 
@@ -155,9 +170,9 @@ struct ConnectionView: View {
         }
         .padding(18)
         .background(Color(nsColor: availability.tint).opacity(0.07))
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .stroke(Color(nsColor: availability.tint).opacity(0.18), lineWidth: 1)
         }
     }
@@ -184,62 +199,64 @@ struct ConnectionView: View {
         }
     }
 
-    private func mappingPreview(_ item: MappingPreviewItem) -> some View {
-        HStack(spacing: 10) {
+    /// One mapping, as a table row: the key cap, what it sends, what that
+    /// means. The shortcut column is a fixed width so the meanings line up.
+    /// The cap is drawn the way the 按键 page draws it, so a button has one
+    /// appearance in this app rather than one per page.
+    private func mappingRow(_ item: MappingPreviewItem) -> some View {
+        HStack(spacing: 12) {
             Text(item.key)
                 .font(.system(size: 11, weight: .bold, design: .rounded))
-                .frame(width: 34, height: 34)
-                .background(Color.primary.opacity(0.07))
+                .foregroundStyle(.white)
+                .frame(width: 32, height: 26)
+                .background(JoyTheme.keyCap)
                 .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.shortcut)
-                    .font(.system(size: 13, weight: .semibold))
-                    .lineLimit(1)
-                Text(item.semantic)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-            }
+            Text(item.shortcut)
+                .font(.system(size: 13, weight: .semibold))
+                .lineLimit(1)
+                .frame(width: 96, alignment: .leading)
+            Text(item.semantic)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Spacer(minLength: 8)
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.primary.opacity(0.035))
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
     }
 
-    private func controllerCard(name: String, imageName: String, status: ControllerStatus) -> some View {
-        JoyCard {
-            HStack(spacing: 14) {
+    private func controllerRow(name: String, imageName: String, status: ControllerStatus) -> some View {
+        HStack(spacing: 14) {
+            Group {
                 if let image = state.imageResource(named: imageName) {
                     Image(nsImage: image)
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 42, height: 70)
-                        .opacity(status.connected ? 1 : 0.45)
+                        .opacity(status.connected ? 1 : 0.4)
                 }
-                VStack(alignment: .leading, spacing: 7) {
-                    HStack(spacing: 7) {
-                        Circle()
-                            .fill(status.connected ? JoyTheme.green : Color.secondary)
-                            .frame(width: 8, height: 8)
-                        Text(name)
-                            .font(.system(size: 13, weight: .semibold))
-                    }
-                    if status.connected {
-                        BatteryLevelView(level: status.batteryLevel, charging: status.charging)
-                    } else {
-                        Text(status.asleep ? "按任意键唤醒" : "未连接")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Spacer()
-                StatusPill(
-                    text: status.statusText,
-                    color: status.connected ? JoyTheme.green
-                         : (status.asleep ? JoyTheme.blue : .secondary)
-                )
             }
+            .frame(width: 30, height: 48)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(name)
+                    .font(.system(size: 13, weight: .semibold))
+                if status.connected {
+                    BatteryLevelView(level: status.batteryLevel, charging: status.charging)
+                } else {
+                    Text(status.asleep ? "按任意键唤醒" : "未连接")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer(minLength: 12)
+            StatusPill(
+                text: status.statusText,
+                color: status.connected ? JoyTheme.green
+                     : (status.asleep ? JoyTheme.blue : .secondary)
+            )
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
     }
 
     /// Which buttons to surface first. Order only -- what each one *means* is
@@ -279,13 +296,6 @@ struct ConnectionView: View {
         }
         return result
     }
-
-    private func action(for gesture: String, card: MappingCardModel) -> String {
-        if let row = card.rows.first(where: { ($0.gesture ?? "单击") == gesture }) {
-            return row.value
-        }
-        return "未设置"
-    }
 }
 
 
@@ -302,12 +312,12 @@ struct BatteryLevelView: View {
     let charging: Bool
 
     var body: some View {
-        HStack(spacing: 7) {
+        HStack(spacing: 6) {
             HStack(spacing: 2) {
                 ForEach(1...4, id: \.self) { index in
                     RoundedRectangle(cornerRadius: 1.5)
                         .fill(fillColor(for: index))
-                        .frame(width: 9, height: 14)
+                        .frame(width: 7, height: 11)
                 }
             }
             Text(detail)

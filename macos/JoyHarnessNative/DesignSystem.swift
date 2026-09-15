@@ -255,3 +255,81 @@ struct InfoRow: View {
         }
     }
 }
+
+/// One inset group of rows, the way System Settings draws a list: a single
+/// opaque surface with hairlines between its rows.
+///
+/// This exists because the 连接 page used to stack a `JoyCard` inside a
+/// `JoyCard` -- two nearly identical translucent greys on top of each other,
+/// which is what made the page read as muddy rather than layered. A group
+/// draws one surface no matter how many rows it holds.
+struct JoyGroup<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(spacing: 0) {
+            content
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(Color.primary.opacity(0.07), lineWidth: 1)
+        }
+    }
+}
+
+/// The hairline between two rows of a `JoyGroup`. Inset to start where the
+/// row's text starts, so the divider reads as separating entries rather than
+/// cutting the group in half.
+struct JoyRowDivider: View {
+    var inset: CGFloat = 14
+
+    var body: some View {
+        Divider()
+            .opacity(0.6)
+            .padding(.leading, inset)
+    }
+}
+
+/// The label above a `JoyGroup`, with an optional action on the right. The
+/// action is a link rather than a bordered button: a section header should
+/// not compete with the page's real buttons for attention.
+struct JoySectionHeader: View {
+    let title: String
+    var trailing: AnyView?
+
+    init(_ title: String, trailing: AnyView? = nil) {
+        self.title = title
+        self.trailing = trailing
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Text(title)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 12)
+            trailing
+        }
+        .padding(.horizontal, 3)
+    }
+}
+
+/// Named with a Joy prefix because SwiftUI already ships a `LinkButtonStyle`.
+struct JoyLinkButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovering = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(JoyTheme.blue.opacity(isEnabled ? (configuration.isPressed ? 0.6 : 1) : 0.4))
+            .underline(isHovering && isEnabled)
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+            .onHover { isHovering = $0 }
+            .animation(JoyMotion.hover, value: isHovering)
+    }
+}
