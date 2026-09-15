@@ -129,15 +129,40 @@ def put(key: str, body: bytes, cache_control: str,
         headers["content-disposition"] = f'attachment; filename="{key}"'
     headers["authorization"] = authorization("put", key, headers, secret_id, secret_key)
 
-    request = urllib.request.Request(PUBLIC_PREFIX + quote(key, safe="/"),
-                                     data=body, headers=headers, method="PUT")
-    try:
-        with urllib.request.urlopen(request, timeout=300) as response:
-            if response.status not in (200, 204):
-                raise SystemExit(f"{key}: COS answered HTTP {response.status}")
-    except urllib.error.HTTPError as error:
-        raise SystemExit(f"{key}: upload failed, HTTP {error.code}\n"
-                         f"{error.read().decode('utf-8', 'replace')}") from error
+    # The runner is not in China and the bucket is, so this is the same slow
+    # link the whole migration exists because of, crossed in the other
+    # direction. A flat 300s killed the first real release mid-package: the
+    # write timed out, and the transfer that had already happened was thrown
+    # away. Budget by size against a floor of 100KB/s, and retry -- a timeout
+    # here is congestion, not a wrong request, and congestion passes.
+    timeout = 60 + len(body) // 100_000
+    attempts = 4
+    for attempt in range(1, attempts + 1):
+        # Re-signed each time: a signature is only valid for a window, and a
+        # retry after a long stall could otherwise be rejected as expired --
+        # which would read as a bad key rather than as a slow network.
+        headers["authorization"] = authorization("put", key, {
+            name: value for name, value in headers.items() if name != "authorization"
+        }, secret_id, secret_key)
+        request = urllib.request.Request(PUBLIC_PREFIX + quote(key, safe="/"),
+                                         data=body, headers=headers, method="PUT")
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                if response.status not in (200, 204):
+                    raise SystemExit(f"{key}: COS answered HTTP {response.status}")
+            break
+        except urllib.error.HTTPError as error:
+            # An answer, not a failure to reach: retrying will not change it.
+            raise SystemExit(f"{key}: upload failed, HTTP {error.code}\n"
+                             f"{error.read().decode('utf-8', 'replace')}") from error
+        except (urllib.error.URLError, OSError) as error:
+            if attempt == attempts:
+                raise SystemExit(f"{key}: upload failed after {attempts} attempts "
+                                 f"({timeout}s each): {error}") from error
+            pause = 5 * attempt
+            print(f"  ..   {key}: {error}; retrying in {pause}s "
+                  f"({attempt}/{attempts - 1})", flush=True)
+            time.sleep(pause)
     print(f"  put  {key}  ({len(body)} bytes, {CONTENT_TYPES[suffix]})")
 
 
@@ -153,7 +178,7 @@ def verify(key: str, body: bytes) -> None:
     """
     url = PUBLIC_PREFIX + quote(key, safe="/")
     try:
-        with urllib.request.urlopen(url, timeout=300) as response:
+        with urllib.request.urlopen(url, timeout=60 + len(body) // 100_000) as response:
             served = response.read()
     except urllib.error.HTTPError as error:
         raise SystemExit(f"{key}: published, but serving HTTP {error.code} to an "
@@ -273,6 +298,22 @@ def check_credentials(secret_id: str, secret_key: str) -> int:
     return 0
 
 
+def probe(megabytes: int, secret_id: str, secret_key: str) -> int:
+    """Measure what this machine can actually push into the bucket.
+
+    Written because the first real release died on a write timeout and the
+    honest answer to "is a retry enough" was that nobody had measured the link.
+    """
+    body = b"\0" * (megabytes * 1024 * 1024)
+    key = "credential-check.txt"
+    started = time.monotonic()
+    put(key, body, REVALIDATE, secret_id, secret_key)
+    elapsed = time.monotonic() - started
+    rate = len(body) / elapsed / 1024
+    print(f"publish-to-cos: {megabytes}MB in {elapsed:.1f}s ({rate:.0f} KB/s)")
+    return 0
+
+
 def main(argv: list[str]) -> int:
     if argv == ["--self-test"]:
         return self_test()
@@ -302,6 +343,9 @@ def main(argv: list[str]) -> int:
 
     if argv == ["--check-credentials"]:
         return check_credentials(secret_id, secret_key)
+
+    if len(argv) == 2 and argv[0] == "--probe":
+        return probe(int(argv[1]), secret_id, secret_key)
 
     paths = [Path(argument) for argument in argv]
     for path in paths:
