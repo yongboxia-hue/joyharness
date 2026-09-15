@@ -3,12 +3,12 @@
     <channel>
         <title>JoyHarness</title>
         <item>
-            <title>0.1.6</title>
-            <pubDate>Tue, 15 Sep 2026 08:00:24 +0800</pubDate>
-            <sparkle:version>0.1.6</sparkle:version>
-            <sparkle:shortVersionString>0.1.6</sparkle:shortVersionString>
+            <title>0.1.7</title>
+            <pubDate>Tue, 15 Sep 2026 08:31:16 +0800</pubDate>
+            <sparkle:version>0.1.7</sparkle:version>
+            <sparkle:shortVersionString>0.1.7</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/yongboxia-hue/joyharness/releases/download/v0.1.6/JoyHarness-macos-v0.1.6.dmg" length="23281981" type="application/octet-stream" sparkle:edSignature="dmn+0KO4Pol1Xf7lS7HCgvxGEuUEZ/YjdNr3nTZrhy1+e9bCblkSBxr9AC1ueeQpUo4oDD0SfUK4D/s1MB8QBw=="/>
+            <enclosure url="https://github.com/yongboxia-hue/joyharness/releases/download/v0.1.7/JoyHarness-macos-v0.1.7.dmg" length="22106781" type="application/octet-stream" sparkle:edSignature="RQGQePag4ORRUxczK59WSHcfjYlX4svk2TQFGXhbWWg0uJKIoaC5k0A/4nMseOVWSw942DvV3GDeJpKorWiCCw=="/>
         </item>
     </channel>
 </rss>

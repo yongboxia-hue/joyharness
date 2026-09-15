@@ -213,6 +213,14 @@ jobs:
             echo "Feed unchanged."
           else
             git commit -m "Announce ${{ github.ref_name }} in the update feed"
+            # main can move while this runs -- the build, notarization and
+            # upload take about fifteen minutes, which is long enough for
+            # someone to push. Rebasing onto whatever main is now keeps a
+            # release from failing at the last step over an unrelated commit,
+            # with everything already published and only the feed missing --
+            # which is exactly how v0.1.7 failed.
+            git fetch origin main
+            git rebase origin/main
             git push origin HEAD:main
           fi
 
