@@ -323,10 +323,32 @@ def close_any_sheet() -> None:
         time.sleep(0.5)
 
 
+def select_right_controller() -> None:
+    """The 按键 page opens on whichever controller is connected, so a test that
+    assumes the right one finds a board full of left-hand buttons when a left
+    Joy-Con is in the user's hand. Ask for the side this test is about.
+
+    A SwiftUI segmented picker exposes its options as untitled radio buttons,
+    so they are addressed by position: 左手柄 then 右手柄, the order the picker
+    lists them in.
+    """
+    deadline = time.time() + 6
+    while time.time() < deadline:
+        if find(app_element(), "mapping-card-right-ZR") is not None:
+            return
+        group = find_role(app_element(), "AXRadioGroup")
+        options = attribute(group, AX.kAXChildrenAttribute) if group is not None else None
+        if options and len(options) >= 2:
+            AX.AXUIElementPerformAction(options[1], AX.kAXPressAction)
+        time.sleep(0.4)
+    raise AssertionError("the 按键 page would not show the right controller")
+
+
 def open_zr_editor() -> None:
     close_any_sheet()
     press("sidebar-mapping")
     time.sleep(0.6)
+    select_right_controller()
     press("mapping-card-right-ZR")
     await_element("mapping-editor-save")
 
@@ -382,6 +404,34 @@ def case_manual_input() -> None:
     time.sleep(0.8)
     check(button_config() == {"action": "passthrough", "keys": ["cmd", "shift", "7"]},
           "typed shortcut reaches the config file", f"{button_config()}")
+
+
+def case_card_updates_without_leaving() -> None:
+    """The bug that looked like this one: a card that does not follow the file.
+
+    Nothing here navigates away and back. The card has to change while it is
+    being looked at, because that is what a person does -- save, and look at
+    the board behind the sheet.
+    """
+    print("\n保存后卡片当场更新")
+    open_zr_editor()
+    set_input_mode(manual=True)
+    type_text("Control+Option+8")
+    press("mapping-editor-save")
+    time.sleep(1.0)
+    shown = attribute(await_element("mapping-card-right-ZR"), "AXValue") or ""
+    check(shown == "⌃⌥8", "the 按键 card shows the new shortcut without a page change",
+          f"card says {shown!r}")
+
+    # And the summary on 连接, for the side it is summarising.
+    press("sidebar-connection")
+    time.sleep(0.8)
+    preview = find(app_element(), "preview-ZR")
+    if preview is None:
+        check(True, "连接 is summarising the other controller, so ZR is not on it")
+    else:
+        value = attribute(preview, "AXValue") or ""
+        check(value == "⌃⌥8", "the 连接 summary shows the new shortcut", f"summary says {value!r}")
 
 
 def case_recording() -> None:
@@ -480,6 +530,7 @@ def main() -> int:
         runtime = start_runtime()
         launch_and_focus()
         case_manual_input()
+        case_card_updates_without_leaving()
         case_recording()
         case_clear()
         case_add_long_press()

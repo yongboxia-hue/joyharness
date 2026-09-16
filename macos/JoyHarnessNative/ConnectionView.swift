@@ -269,6 +269,12 @@ struct ConnectionView: View {
                     .layoutPriority(-1)
             }
         }
+        // Named and valued for the same reason the mapping cards are: this
+        // summary is supposed to follow the config, and a test should be able
+        // to see that rather than a person noticing it did not.
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("preview-\(item.key)")
+        .accessibilityValue(item.shortcut)
     }
 
     /// The controller, its name, and a second line only when there is one

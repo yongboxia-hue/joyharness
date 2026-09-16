@@ -59,35 +59,40 @@ if git rev-parse "v$version" >/dev/null 2>&1; then
   exit 1
 fi
 
-python3 - "$version" <<'PY'
-import pathlib
-import re
-import sys
-
-version = sys.argv[1]
-edits = [
-    (pathlib.Path("scripts/build-swiftui-macos-app.sh"),
-     r'(VERSION="\$\{JOYHARNESS_VERSION:-)[0-9.]+(\})'),
-    (pathlib.Path("src/constants.py"),
-     r'(__version__ = ")[0-9.]+(")'),
-]
-for path, pattern in edits:
-    text = path.read_text()
-    replaced, count = re.subn(pattern, lambda m: m.group(1) + version + m.group(2), text)
-    if count != 1:
-        raise SystemExit(f"{path}: expected one version to replace, found {count}")
-    path.write_text(replaced)
-    print(f"  {path} -> {version}")
-PY
+# The bump itself is scripts/set-version.sh, run earlier so the package people
+# actually tried already called itself this version. Here we only check that it
+# was run, because tagging a tree that still says the old number is the exact
+# mistake this script exists to prevent.
+stamped_build="$(sed -n 's/^VERSION="\${JOYHARNESS_VERSION:-\([0-9.]*\)}"/\1/p' scripts/build-swiftui-macos-app.sh | head -1)"
+stamped_runtime="$(sed -n 's/^__version__ = "\([0-9.]*\)"/\1/p' src/constants.py | head -1)"
+if [ "$stamped_build" != "$version" ] || [ "$stamped_runtime" != "$version" ]; then
+  echo "The tree says $stamped_build / $stamped_runtime, not $version." >&2
+  echo "Run scripts/set-version.sh $version first, and re-test what it builds." >&2
+  exit 1
+fi
 
 # The same check CI runs. Running it here means a mismatch is a local failure
 # on a clean tree rather than a red build on a tag that then has to be deleted
 # from the remote.
-verifier=python3
-[ -x .venv/bin/python ] && verifier=.venv/bin/python
-"$verifier" scripts/verify-native-ui-contract.py
+# The contract check imports the runtime's own modules, so it needs the project
+# venv. A git worktree does not have one of its own -- it shares the checkout it
+# was made from -- so look there too rather than failing in a way that reads
+# like a broken environment.
+resolve_python() {
+  if [ -n "${JOYHARNESS_PYTHON:-}" ]; then echo "$JOYHARNESS_PYTHON"; return; fi
+  if [ -x .venv/bin/python ]; then echo ".venv/bin/python"; return; fi
+  local common main_venv
+  common="$(git rev-parse --git-common-dir 2>/dev/null || true)"
+  if [ -n "$common" ]; then
+    main_venv="$(cd "$(dirname "$common")" && pwd)/.venv/bin/python"
+    if [ -x "$main_venv" ]; then echo "$main_venv"; return; fi
+  fi
+  echo python3
+}
 
-git add CHANGELOG.md src/constants.py scripts/build-swiftui-macos-app.sh
+"$(resolve_python)" scripts/verify-native-ui-contract.py
+
+git add CHANGELOG.md
 git commit -m "Release $version"
 git tag "v$version"
 

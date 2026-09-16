@@ -257,6 +257,7 @@ struct MappingView: View {
         .buttonStyle(.plain)
         .onHover { hoveredID = $0 ? card.id : nil }
         .accessibilityLabel("\(card.key) 按键配置")
+        .accessibilityValue(card.rows.map(\.value).joined(separator: " / "))
         .accessibilityIdentifier("mapping-card-\(side.rawValue)-\(card.id)")
     }
 

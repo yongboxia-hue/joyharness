@@ -139,4 +139,4 @@ def get_button_indices(mode: str = "single_right") -> dict[str, int]:
 # === Stick Direction Names ===
 STICK_DIRECTIONS = ("up", "down", "left", "right", "up-left", "up-right", "down-left", "down-right")
 
-__version__ = "0.1.9"
+__version__ = "0.2.0"
