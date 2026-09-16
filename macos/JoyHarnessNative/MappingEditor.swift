@@ -320,65 +320,27 @@ private struct ShortcutActionEditorRow: View {
     @State private var showManualInput = false
     @State private var validationMessage: String?
     @State private var isRecording = false
+    @FocusState private var isTyping: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 7) {
+            // The gesture's name belongs above the field it names, the way
+            // every section on every page of this app is labelled. Beside it
+            // -- 12pt grey floating next to a tall block -- it read as a stray
+            // caption, and because it only appears once a button does two
+            // things, the field's left edge used to jump 50 points sideways
+            // the moment a second gesture was added.
             HStack(spacing: 10) {
                 if showGestureTitle {
                     Text(gesture.title)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 40, alignment: .leading)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(JoyTheme.detail)
                 }
-
-                if isBuiltInAction {
-                    Label(action.displayLabel, systemImage: "rectangle.on.rectangle")
-                        .font(.system(size: 12, weight: .medium))
-                        .frame(width: 180, height: 32, alignment: .leading)
-                        .help("这是内置动作，请从右侧菜单选择")
-                } else {
-                    shortcutField
-                }
-
-                HStack(spacing: 6) {
-                // One kind of thing: what this button sends. How you enter a
-                // shortcut -- record it or type it -- is a different axis, and
-                // it lives on the row now; mixing the two in here is what made
-                // manual entry hard to find and odd to come across.
-                Menu {
-                    specialButton("fn", .shortcutKeys("fn"))
-                    specialButton("Return", .shortcutKeys("enter"))
-                    specialButton("Escape", .shortcutKeys("escape"))
-                    specialButton("Tab", .shortcutKeys("tab"))
-                    specialButton("Space", .shortcutKeys("space"))
-                    specialButton("Delete", .shortcutKeys("backspace"))
-                    Divider()
-                    // No "连续 Delete" or "按住 Command" entries any more:
-                    // a modifier is held and everything else repeats, the
-                    // same way it does on the keyboard, so plain Delete and
-                    // plain Command already are those.
-                    specialButton("Command", .shortcutKeys("cmd"))
-                    specialButton("Option", .shortcutKeys("alt_r"))
-                    specialButton("Control", .shortcutKeys("ctrl"))
-                    specialButton("Shift", .shortcutKeys("shift"))
-                    Divider()
-                    // Built-ins come from ActionCatalog, so the menu cannot
-                    // offer a name the rest of the app calls something else,
-                    // nor an action the shipped runtime cannot carry out.
-                    ForEach(ActionCatalog.editableActions, id: \.self) { action in
-                        specialButton(ActionCatalog.name(of: action), .builtIn(action))
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                }
-                .menuStyle(.borderlessButton)
-                .frame(width: 28)
-                .help("选择特殊按键或行为")
-
-                // The primary row can be emptied but not removed -- every
-                // button has a first action -- so it gets a clear button;
-                // an added gesture gets a remove one. Folding both into the
-                // menu left the row as a lone "⋯" beside a gap.
+                Spacer(minLength: 8)
+                // Small icons, on the line with the small text. Beside the
+                // field they were two bare glyphs next to a solid block, at a
+                // weight that matched nothing else in the row.
+                rowMenu
                 if let onRemove {
                     Button {
                         validationMessage = nil
@@ -388,39 +350,83 @@ private struct ShortcutActionEditorRow: View {
                     }
                     .buttonStyle(.borderless)
                     .help("移除这个动作")
-                } else {
-                    Button {
-                        action = .disabled
-                        validationMessage = nil
-                    } label: {
-                        Image(systemName: "xmark.circle")
+                    .accessibilityLabel("移除\(gesture.title)")
+                }
+            }
+            .frame(height: 16)
+
+            if isBuiltInAction {
+                Label(action.displayLabel, systemImage: "rectangle.on.rectangle")
+                    .font(.system(size: 14, weight: .medium))
+                    .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .background(JoyTheme.cardSurface)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(JoyTheme.cardBorder, lineWidth: 1)
                     }
-                    .buttonStyle(.borderless)
-                    .help("清除")
-                    .disabled(action == .disabled)
-                }
-                }
-                .frame(width: 58, alignment: .trailing)
+                    .help("这是内置动作，请从上面的菜单选择")
+            } else {
+                shortcutField
             }
 
             if let validationMessage {
                 Text(validationMessage)
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                     .foregroundStyle(.red)
-                    .padding(.leading, 70)
             }
-
         }
-        .padding(.vertical, 12)
         // `action` can change out from under this row without going through
         // one of the handlers below -- e.g. the sheet's "恢复推荐" button
         // replaces the whole draft at once. Without this, a stale manual
         // TextField entry or validation error from before the reset would
         // keep showing next to the now-current action.
         .onChange(of: action) { _ in
-            manualInput = ""
+            if !showManualInput { manualInput = "" }
             validationMessage = nil
         }
+        // Half-typed text is not a mistake yet. The complaint waits until the
+        // field is left, by which point the text is as finished as it is going
+        // to get.
+        .onChange(of: isTyping) { focused in
+            if !focused { validateTypedText() }
+        }
+    }
+
+    private var rowMenu: some View {
+        // One kind of thing: what this button sends. How you enter a shortcut
+        // -- record it or type it -- is a different axis, and it lives in the
+        // field itself; mixing the two in here is what made manual entry hard
+        // to find and odd to come across.
+        Menu {
+            specialButton("fn", .shortcutKeys("fn"))
+            specialButton("Return", .shortcutKeys("enter"))
+            specialButton("Escape", .shortcutKeys("escape"))
+            specialButton("Tab", .shortcutKeys("tab"))
+            specialButton("Space", .shortcutKeys("space"))
+            specialButton("Delete", .shortcutKeys("backspace"))
+            Divider()
+            // No "连续 Delete" or "按住 Command" entries any more: a modifier
+            // is held and everything else repeats, the same way it does on the
+            // keyboard, so plain Delete and plain Command already are those.
+            specialButton("Command", .shortcutKeys("cmd"))
+            specialButton("Option", .shortcutKeys("alt_r"))
+            specialButton("Control", .shortcutKeys("ctrl"))
+            specialButton("Shift", .shortcutKeys("shift"))
+            Divider()
+            // Built-ins come from ActionCatalog, so the menu cannot offer a
+            // name the rest of the app calls something else, nor an action the
+            // shipped runtime cannot carry out.
+            ForEach(ActionCatalog.editableActions, id: \.self) { action in
+                specialButton(ActionCatalog.name(of: action), .builtIn(action))
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .help("选择特殊按键或行为")
     }
 
     private var isBuiltInAction: Bool {
@@ -443,8 +449,10 @@ private struct ShortcutActionEditorRow: View {
                 if showManualInput {
                     TextField("如 ⌘V 或 Command+V", text: $manualInput)
                         .textFieldStyle(.plain)
-                        .font(.system(size: 15, weight: .medium))
-                        .onSubmit(applyManualInput)
+                        .font(.system(size: 16, weight: .medium))
+                        .focused($isTyping)
+                        .onSubmit { isTyping = false }
+                        .onChange(of: manualInput) { _ in parseWhileTyping() }
                         .accessibilityLabel("\(gesture.title)快捷键手动输入")
                         .accessibilityIdentifier("manual-shortcut-field")
                 } else {
@@ -453,7 +461,6 @@ private struct ShortcutActionEditorRow: View {
                         onRecord: { shortcut in
                             action = .shortcut(shortcut)
                             manualInput = ""
-                            showManualInput = false
                             validationMessage = nil
                         },
                         onRecordingChanged: { isRecording = $0 }
@@ -461,47 +468,105 @@ private struct ShortcutActionEditorRow: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.leading, 14)
+            .padding(.leading, 16)
 
-            if showManualInput {
-                Button("应用", action: applyManualInput)
-                    .buttonStyle(JoyLinkButtonStyle())
-                    .disabled(manualInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .padding(.trailing, 12)
+            // Left of the hairline is about the value itself, right of it is
+            // how you enter one -- so clearing belongs here, and the hairline
+            // belongs to the clear button: with nothing to clear there is only
+            // one control on this side and nothing to separate it from.
+            if canClear {
+                Button(action: clearValue) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(JoyTheme.detail)
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 12)
+                .help("清空")
+                .accessibilityLabel("清空\(gesture.title)")
+                .accessibilityIdentifier("shortcut-clear")
+
+                Divider()
+                    .frame(height: 24)
             }
-
-            Divider()
-                .frame(height: 22)
 
             // Recording is what this field is for -- you press the keys you
             // want. Typing is for the keys you cannot press, so it is named
             // and always in the same place, but never given equal weight.
             Button(showManualInput ? "改用录制" : "手动输入") {
                 showManualInput.toggle()
-                manualInput = ""
+                manualInput = showManualInput ? editableText : ""
                 validationMessage = nil
+                isTyping = showManualInput
             }
             .buttonStyle(JoyLinkButtonStyle())
-            .padding(.horizontal, 13)
+            .padding(.horizontal, 14)
             .accessibilityIdentifier("manual-shortcut-toggle")
         }
-        .frame(height: 44)
+        .frame(height: 48)
         .background(JoyTheme.cardSurface)
-        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .stroke(isRecording ? JoyTheme.blue : JoyTheme.cardBorder,
                         lineWidth: isRecording ? 2 : 1)
         }
         .animation(JoyMotion.hover, value: isRecording)
         .animation(JoyMotion.hover, value: showManualInput)
+        .animation(JoyMotion.hover, value: canClear)
     }
 
-    private func applyManualInput() {
+    /// Whether there is anything in the field to empty out.
+    private var canClear: Bool {
+        showManualInput ? !manualInput.isEmpty : action.isSet
+    }
+
+    /// The current shortcut as text the parser will accept back, so switching
+    /// to typing starts from what is already set rather than from nothing.
+    /// Empty when the value cannot survive the round trip -- better to start
+    /// blank than to hand back something that will not parse.
+    private var editableText: String {
+        guard case .shortcut = action else { return "" }
+        let label = action.displayLabel
+        return (try? ShortcutDefinition.parse(label)) != nil ? label : ""
+    }
+
+    /// Emptying the field is the same act as clearing the mapping: an empty
+    /// field means this gesture does nothing, which is what the outer 清除
+    /// button used to say separately. Removing the row is a different thing
+    /// and still lives on the row's own line -- and never on the first row,
+    /// which cannot be removed at all.
+    private func clearValue() {
+        manualInput = ""
+        action = .disabled
+        validationMessage = nil
+        if showManualInput { isTyping = true }
+    }
+
+    /// Typed text becomes the value as it is typed, so there is no second
+    /// word for "commit" anywhere near 保存. Half-typed text is not an error
+    /// yet, so nothing is said about it until the field is left or Enter is
+    /// pressed; until then the last thing that did parse stands.
+    private func parseWhileTyping() {
+        validationMessage = nil
+        let trimmed = manualInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            action = .disabled
+            return
+        }
+        if let parsed = try? ShortcutDefinition.parse(trimmed) {
+            action = .shortcut(parsed)
+        }
+    }
+
+    private func validateTypedText() {
+        let trimmed = manualInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            validationMessage = nil
+            return
+        }
         do {
-            action = .shortcut(try ShortcutDefinition.parse(manualInput))
-            manualInput = ""
-            showManualInput = false
+            action = .shortcut(try ShortcutDefinition.parse(trimmed))
             validationMessage = nil
         } catch {
             validationMessage = error.localizedDescription
