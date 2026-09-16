@@ -17,7 +17,21 @@
 # Usage: scripts/mirror-watch.sh [--once]
 
 set -euo pipefail
-cd "$(dirname "$0")/.."
+
+# Where the repository is, from this script's point of view.
+#
+# Installed as a launchd agent, this script and a clone of the repository live
+# under Application Support, because macOS does not let a background agent read
+# anything in ~/Documents -- it gets "Operation not permitted" with no prompt,
+# since there is no app to ask on its behalf. Run from a checkout, it uses that
+# checkout as before.
+here="$(cd "$(dirname "$0")" && pwd)"
+if [ -d "$here/repo/.git" ]; then
+  cd "$here/repo"
+  export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+else
+  cd "$here/.."
+fi
 
 log() { printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
 
