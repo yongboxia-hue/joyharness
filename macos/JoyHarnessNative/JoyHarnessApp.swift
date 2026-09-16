@@ -38,7 +38,16 @@ final class JoyHarnessAppDelegate: NSObject, NSApplicationDelegate, NSWindowDele
         DispatchQueue.main.async {
             Self.showMainWindow()
         }
-        if AppState.shared.buildFlavor == "preview" {
+        // The screenshot pass drives the app for about ten seconds: every page,
+        // both controllers, both appearances, ending with the editor open. That
+        // is fine when you asked for screenshots and hostile when you did not --
+        // it flips pages under anyone using a Preview build, and it swallowed
+        // the first synthetic click of every automated check that ran within
+        // ten seconds of a launch. It is an errand now, not a habit:
+        //
+        //   JOYHARNESS_QA_CAPTURE=1 open -a "JoyHarness Preview.app"
+        if AppState.shared.buildFlavor == "preview",
+           ProcessInfo.processInfo.environment["JOYHARNESS_QA_CAPTURE"] == "1" {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
                 self?.capturePreviewPagesForQA(index: 0)
             }
