@@ -97,43 +97,6 @@ struct StatusPill: View {
     }
 }
 
-struct ConnectionStatusBadge: View {
-    let availability: AvailabilityState
-
-    var body: some View {
-        HStack(spacing: 7) {
-            Image(systemName: iconName)
-                .font(.system(size: 12, weight: .semibold))
-                .imageScale(.small)
-            Text(availability.badge)
-                .font(.system(size: 12, weight: .semibold))
-        }
-        .foregroundStyle(tint)
-        .padding(.horizontal, 11)
-        .padding(.vertical, 7)
-        .background(tint.opacity(0.12))
-        .overlay {
-            Capsule()
-                .stroke(tint.opacity(0.24), lineWidth: 1)
-        }
-        .clipShape(Capsule())
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("当前状态：\(availability.badge)")
-    }
-
-    private var tint: Color { Color(nsColor: availability.tint) }
-
-    private var iconName: String {
-        switch availability {
-        case .serviceStopped: return "exclamationmark.triangle.fill"
-        case .permissionRequired: return "lock.trianglebadge.exclamationmark"
-        case .disconnected: return "antenna.radiowaves.left.and.right.slash"
-        case .paused: return "pause.circle.fill"
-        case .ready: return "checkmark.circle.fill"
-        }
-    }
-}
-
 struct RefreshButton: View {
     let isRefreshing: Bool
     let action: () -> Void

@@ -324,10 +324,18 @@ require(mapping_view, "static func height(for card: MappingCardModel)", "content
 require(mapping_view, "min((usableHeight - stacked) / CGFloat(columnCards.count - 1), LayoutItem.gap)",
         "both columns cap their card gap at the same LayoutItem.gap")
 require(design, ".contentShape(Rectangle())", "custom button hit targets")
-require(design, "struct ConnectionStatusBadge", "connection status badge")
 require(design, "struct RefreshButton", "refresh button feedback")
 require(design, "struct IconButtonStyle", "icon button hover and press feedback")
-require(connection_view, "ConnectionStatusBadge(availability: state.availability)", "connection page status badge")
+# The page carried a status badge beside its title until the banner and the
+# 按键响应 card between them covered all five states; the badge was then the
+# same fact a fourth time (the sidebar says it too), and it is gone. What has
+# to keep holding is that the banner still covers every state this page cannot
+# act on from the sections below -- that is what the badge was really there to
+# guarantee.
+for _state in (".permissionRequired", ".serviceStopped", ".disconnected"):
+    check(f"state.availability == {_state}" in connection_view,
+          f"the 连接 banner no longer covers {_state}",
+          "the page states it but offers no way out of it")
 require(connection_view, "state.refreshStatusWithFeedback()", "connection page refresh feedback")
 require(app_model, "func refreshStatusWithFeedback()", "status refresh feedback state")
 require(app_model, "enum AppAppearance", "three-state appearance model")
@@ -383,7 +391,11 @@ forbid(about_view, "后台服务", "关于 exposes the runtime process; users ge
 # --------------------------------------------------------------------------
 # The status row on the 连接 page must reflect every reason a press can do
 # nothing, not just the user's own pause.
-check("state.availability" in connection_view.split("按键响应")[1].split("recoveryCard")[0],
+# Anchored on the section header, not on the bare words: splitting the file at
+# every occurrence of 按键响应 meant a sentence about the row in a comment moved
+# the window this reads, and the check failed on prose rather than on
+# behaviour -- which is exactly what the docstring above forbids.
+check("state.availability" in connection_view.split('JoySectionHeader("按键响应")')[1].split("private var recoveryCard")[0],
       "the 按键响应 row reads only `paused` again",
       "it said 按键正在发出快捷键 on the same screen as the 还需要完成系统授权 banner")
 

@@ -9,12 +9,16 @@ struct ConnectionView: View {
                 PageTitle(
                     "连接",
                     subtitle: "Joy-Con 连上之后，按键就会发出你配置的快捷键。",
+                    // No status badge here. The banner below states the three
+                    // states this page cannot act on, the 按键响应 card states
+                    // the other two, and the sidebar states all five all the
+                    // time -- a badge beside the title was the same fact a
+                    // fourth time. Refresh stays: it is an action on the
+                    // page's status, and it is most wanted in exactly the
+                    // states that raise no banner.
                     trailing: AnyView(
-                        HStack(spacing: 9) {
-                            ConnectionStatusBadge(availability: state.availability)
-                            RefreshButton(isRefreshing: state.isRefreshingStatus) {
-                                state.refreshStatusWithFeedback()
-                            }
+                        RefreshButton(isRefreshing: state.isRefreshingStatus) {
+                            state.refreshStatusWithFeedback()
                         }
                     )
                 )
@@ -64,11 +68,12 @@ struct ConnectionView: View {
                                 .foregroundStyle(JoyTheme.detail)
                         }
                     } else {
-                        // Six previews in three columns: two full rows, no
-                        // empty cell. The count is what left a hole in the
-                        // old three-column grid, not the three columns.
+                        // Two columns, the same split the device cards use, so
+                        // the page has exactly one interior edge and everything
+                        // lines up against it. Three columns divided at 33% and
+                        // 66% and matched nothing above them.
                         LazyVGrid(
-                            columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3),
+                            columns: Array(repeating: GridItem(.flexible(), spacing: 14), count: 2),
                             spacing: 12
                         ) {
                             ForEach(previewMappings) { item in
@@ -187,22 +192,26 @@ struct ConnectionView: View {
         }
     }
 
+    /// Always a neutral button. The banner's own tint carries the severity;
+    /// a blue button on a red surface is two accent colours competing inside
+    /// one box, and a red one would read as destructive -- which 重新启动 is
+    /// not.
     @ViewBuilder
     private func recoveryAction(for availability: AvailabilityState) -> some View {
         switch availability {
         case .serviceStopped:
             Button(state.isPerformingServiceAction ? "正在启动…" : "重新启动") { state.startService() }
-                .buttonStyle(PrimaryButtonStyle())
+                .buttonStyle(SecondaryButtonStyle())
                 .disabled(state.isPerformingServiceAction)
         case .permissionRequired:
             Button("前往授权") { state.selectedPage = .about }
-                .buttonStyle(PrimaryButtonStyle())
+                .buttonStyle(SecondaryButtonStyle())
         case .disconnected:
             Button("打开蓝牙设置") { state.openBluetoothSettings() }
-                .buttonStyle(PrimaryButtonStyle())
+                .buttonStyle(SecondaryButtonStyle())
         case .paused:
             Button(state.isChangingPauseState ? "处理中…" : "继续响应") { state.togglePaused() }
-                .buttonStyle(PrimaryButtonStyle())
+                .buttonStyle(SecondaryButtonStyle())
                 .disabled(state.isChangingPauseState)
         case .ready:
             EmptyView()
@@ -216,23 +225,23 @@ struct ConnectionView: View {
         JoyCard(padding: 12, cornerRadius: 10) {
             HStack(spacing: 11) {
                 Text(item.key)
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .font(.system(size: capFontSize(for: item.key), weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .frame(width: 32, height: 26)
                     .background(JoyTheme.keyCapOnRow)
                     .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-                // A floor, not a fixed width: short shortcuts line their
-                // meanings up down the column, long ones still get the room.
                 Text(item.shortcut)
                     .font(.system(size: 13, weight: .semibold))
                     .lineLimit(1)
-                    .frame(minWidth: 56, alignment: .leading)
+                Spacer(minLength: 12)
+                // Pinned to the trailing edge, which is what gives the card's
+                // width a job: what the button sends on the left, what that
+                // means on the right, both aligned down the column.
                 Text(item.semantic)
                     .font(.system(size: 12))
                     .foregroundStyle(JoyTheme.detail)
                     .lineLimit(1)
                     .layoutPriority(-1)
-                Spacer(minLength: 4)
             }
         }
     }
@@ -240,6 +249,15 @@ struct ConnectionView: View {
     /// The controller, its name, and one line saying only what the pill does
     /// not: the battery when it is connected, how to get it back when it is
     /// not. A 未连接 line under a 未连接 pill is the same word twice.
+    /// + and - sit on the maths axis, which is roughly x-height, so at the
+    /// size that suits ZR they look a size smaller than the letters beside
+    /// them. Symbols get the larger size, letters the middle one, and the
+    /// two-character caps stay where they were.
+    private func capFontSize(for key: String) -> CGFloat {
+        guard key.count == 1, let character = key.first else { return 11 }
+        return character.isLetter || character.isNumber ? 12 : 14
+    }
+
     private func controllerCard(name: String, imageName: String, status: ControllerStatus) -> some View {
         JoyCard {
             HStack(spacing: 14) {

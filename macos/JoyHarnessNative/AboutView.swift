@@ -52,23 +52,26 @@ struct AboutView: View {
                             title: "登录时启动 JoyHarness",
                             detail: state.launchAtLoginDetail,
                             trailing: AnyView(
+                                // One control, and nothing beside it saying
+                                // what the control already says. While macOS
+                                // is waiting for the user to approve the login
+                                // item, the switch cannot do anything, so the
+                                // escape hatch takes its place rather than
+                                // sitting next to a dead switch.
                                 HStack(spacing: 10) {
                                     if state.launchAtLoginRequiresApproval {
                                         Button("前往确认") { state.openLoginItemsSettings() }
                                             .buttonStyle(SecondaryButtonStyle())
                                     } else {
-                                        StatusPill(
-                                            text: state.launchAtLoginStatus,
-                                            color: state.launchAtLogin ? JoyTheme.green : .secondary
-                                        )
+                                        Toggle("登录时启动", isOn: Binding(
+                                            get: { state.launchAtLogin },
+                                            set: { state.setLaunchAtLogin($0) }
+                                        ))
+                                        .toggleStyle(.switch)
+                                        .labelsHidden()
+                                        .disabled(state.isUpdatingLaunchAtLogin)
+                                        .accessibilityIdentifier("launch-at-login-toggle")
                                     }
-                                    Toggle("登录时启动", isOn: Binding(
-                                        get: { state.launchAtLogin },
-                                        set: { state.setLaunchAtLogin($0) }
-                                    ))
-                                    .labelsHidden()
-                                    .disabled(state.isUpdatingLaunchAtLogin)
-                                    .accessibilityIdentifier("launch-at-login-toggle")
                                 }
                             )
                         )
@@ -105,8 +108,10 @@ struct AboutView: View {
                         InfoRow(
                             symbol: "keyboard.badge.ellipsis",
                             title: "辅助功能授权",
+                            // Not "已授权。" -- the pill beside it already
+                            // says that word. A row says one thing once.
                             detail: state.accessibilityGranted
-                                ? "已授权。"
+                                ? "Joy-Con 现在可以发出快捷键。"
                                 : "授权后 Joy-Con 才能发出快捷键。",
                             tint: state.accessibilityGranted ? JoyTheme.green : JoyTheme.orange,
                             trailing: AnyView(accessibilityAction)
@@ -124,6 +129,7 @@ struct AboutView: View {
                                     get: { state.idleSleepEnabled },
                                     set: { state.setIdleSleep(enabled: $0) }
                                 ))
+                                .toggleStyle(.switch)
                                 .labelsHidden()
                                 .disabled(state.isSavingIdleSleep)
                                 .accessibilityIdentifier("idle-sleep-toggle")
@@ -140,10 +146,10 @@ struct AboutView: View {
                             trailing: AnyView(
                                 HStack(spacing: 10) {
                                     Button("检查") { updater.checkForUpdates() }
-                                        .buttonStyle(.bordered)
-                                        .controlSize(.small)
+                                        .buttonStyle(SecondaryButtonStyle())
                                         .accessibilityIdentifier("check-updates-now")
                                     Toggle("", isOn: $updater.automaticallyChecks)
+                                        .toggleStyle(.switch)
                                         .labelsHidden()
                                         .accessibilityIdentifier("auto-update-toggle")
                                 }
