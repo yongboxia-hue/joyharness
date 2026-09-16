@@ -33,10 +33,24 @@ import Quartz
 from AppKit import NSRunningApplication, NSWorkspace
 
 ROOT = Path(__file__).resolve().parent.parent
-APP = ROOT / "build" / "macos-swiftui" / "JoyHarness Preview.app"
-BUNDLE_ID = "com.yongboxia.joyharness.preview"
-CONFIG = Path.home() / "Applications" / "JoyHarness" / "config" / "user.json"
 RUNTIME = ROOT / "build" / "python-runtime" / "dist" / "JoyHarnessRuntime" / "JoyHarnessRuntime"
+
+
+def plist_value(app: Path, key: str) -> str:
+    out = subprocess.run(
+        ["/usr/libexec/PlistBuddy", "-c", f"Print :{key}", str(app / "Contents" / "Info.plist")],
+        capture_output=True, text=True, check=True,
+    )
+    return out.stdout.strip()
+
+
+# Which build to drive. The installed one by default, because saving a mapping
+# needs a runtime and only the production build starts one; a preview build can
+# be passed on the command line and has its runtime started for it below.
+APP = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("/Applications/JoyHarness.app")
+BUNDLE_ID = plist_value(APP, "CFBundleIdentifier") if APP.exists() else ""
+CONFIG = Path(plist_value(APP, "JoyHarnessRuntimePath")).expanduser() / "config" / "user.json" if APP.exists() else Path()
+IS_PREVIEW = BUNDLE_ID.endswith(".preview")
 
 FAILURES: list[str] = []
 CHECKS = 0
@@ -93,6 +107,35 @@ def await_element(identifier: str, timeout: float = 4.0):
     raise AssertionError(f"accessibility element never appeared: {identifier}")
 
 
+def find_all(element, identifier: str, depth: int = 0) -> list:
+    """Every match, in tree order. Each gesture row carries the same
+    identifiers, so 长按's recorder is simply the second one."""
+    found = []
+    if depth > 40:
+        return found
+    if attribute(element, "AXIdentifier") == identifier:
+        found.append(element)
+    for child in attribute(element, AX.kAXChildrenAttribute) or []:
+        found.extend(find_all(child, identifier, depth + 1))
+    return found
+
+
+def click_nth(identifier: str, index: int) -> None:
+    elements = find_all(app_element(), identifier)
+    if len(elements) <= index:
+        raise AssertionError(f"wanted {identifier}[{index}], found {len(elements)}")
+    position = attribute(elements[index], AX.kAXPositionAttribute)
+    size = attribute(elements[index], AX.kAXSizeAttribute)
+    _, origin = AX.AXValueGetValue(position, AX.kAXValueCGPointType, None)
+    _, extent = AX.AXValueGetValue(size, AX.kAXValueCGSizeType, None)
+    spot = Quartz.CGPointMake(origin.x + extent.width / 2, origin.y + extent.height / 2)
+    for event_type in (Quartz.kCGEventLeftMouseDown, Quartz.kCGEventLeftMouseUp):
+        event = Quartz.CGEventCreateMouseEvent(None, event_type, spot, Quartz.kCGMouseButtonLeft)
+        Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
+        time.sleep(0.05)
+    time.sleep(0.4)
+
+
 def find_role(element, role: str, depth: int = 0):
     if depth > 40:
         return None
@@ -123,33 +166,22 @@ def press(identifier: str) -> None:
 
 
 def type_text(text: str) -> None:
-    """Type into whatever has focus, as keystrokes.
+    """Put text in the field the way text arrives: inserted, not assigned.
 
-    Setting AXValue on a SwiftUI TextField changes what the field draws
-    without telling SwiftUI, so the binding -- and therefore the draft --
-    would never see it. Real keys go through the same path a person's do.
+    Setting AXValue would change what the field draws without telling SwiftUI,
+    so the binding -- and therefore the draft -- would never see it. Inserting
+    it as selected text goes through the field's own insertion path, which is
+    the path a keystroke takes, and the binding updates.
+
+    (Synthesised key events were tried first and did not land; whatever the
+    reason, they made the test unreliable in a way the app is not.)
     """
-    element = await_role("AXTextField")
-    point = attribute(element, AX.kAXPositionAttribute)
-    size = attribute(element, AX.kAXSizeAttribute)
-    _, origin = AX.AXValueGetValue(point, AX.kAXValueCGPointType, None)
-    _, extent = AX.AXValueGetValue(size, AX.kAXValueCGSizeType, None)
-    spot = Quartz.CGPointMake(origin.x + extent.width / 2, origin.y + extent.height / 2)
-    for event_type in (Quartz.kCGEventLeftMouseDown, Quartz.kCGEventLeftMouseUp):
-        event = Quartz.CGEventCreateMouseEvent(None, event_type, spot, Quartz.kCGMouseButtonLeft)
-        Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
-        time.sleep(0.05)
-    time.sleep(0.3)
+    if find(app_element(), "shortcut-clear") is not None:
+        press("shortcut-clear")
 
-    # Select all, then replace. ⌘A only works because the 编辑 menu exists.
-    send_key(0, Quartz.kCGEventFlagMaskCommand)
-
-    for down in (True, False):
-        event = Quartz.CGEventCreateKeyboardEvent(None, 0, down)
-        Quartz.CGEventKeyboardSetUnicodeString(event, len(text), text)
-        Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
-        time.sleep(0.05)
-    time.sleep(0.5)
+    field = await_role("AXTextField")
+    AX.AXUIElementSetAttributeValue(field, "AXSelectedText", text)
+    time.sleep(0.7)
 
 
 def title_of(identifier: str) -> str:
@@ -214,9 +246,12 @@ def start_runtime() -> subprocess.Popen | None:
     ConfigStore writes the file and then asks the runtime to take it; when
     nothing answers it puts the old file back, which is why every save in this
     test used to leave the config exactly as it found it. A preview build does
-    not bundle a runtime -- that is deliberate, production does -- so the test
-    starts the one this repo builds and stops it again afterwards.
+    not bundle a runtime -- that is deliberate, production does -- so against a
+    preview the test starts the one this repo builds and stops it again
+    afterwards, and against the installed build it starts nothing.
     """
+    if not IS_PREVIEW:
+        return None
     if not RUNTIME.exists():
         raise SystemExit(f"Build the runtime first: scripts/build-python-runtime.sh ({RUNTIME})")
 
@@ -385,12 +420,28 @@ def case_add_long_press() -> None:
     time.sleep(0.4)
     check(find(app_element(), "mapping-add-long") is None,
           "添加长按 disappears once there is a long press")
+
+    # An added gesture that was never filled in writes nothing -- by design,
+    # and worth having a test say so out loud.
     press("mapping-editor-save")
-    time.sleep(0.8)
+    time.sleep(1.0)
+    check(button_config() == {"action": "passthrough", "keys": ["cmd", "v"]},
+          "an empty second gesture is not written", f"{button_config()}")
+
+    # Now fill it in. Both rows carry a recorder, and the long press is the
+    # second one.
+    open_zr_editor()
+    press("mapping-add-long")
+    time.sleep(0.6)
+    click_nth("shortcut-recorder", 1)
+    send_key(23, Quartz.kCGEventFlagMaskCommand | Quartz.kCGEventFlagMaskAlternate)
+    press("mapping-editor-save")
+    time.sleep(1.0)
     current = button_config()
     check(isinstance(current, dict) and current.get("action") == "short_long"
-          and current.get("short") == {"keys": ["cmd", "v"]},
-          "a second gesture makes the mapping a short/long pair", f"{current}")
+          and current.get("short") == {"keys": ["cmd", "v"]}
+          and current.get("long") == {"keys": ["cmd", "alt", "5"]},
+          "a filled second gesture makes the mapping a short/long pair", f"{current}")
 
 
 def case_restore_recommended() -> None:
@@ -417,9 +468,10 @@ def case_cancel_writes_nothing() -> None:
 
 def main() -> int:
     if not APP.exists():
-        raise SystemExit(f"Build the preview app first: {APP}")
+        raise SystemExit(f"No app at {APP}. Install it, or pass a build's path.")
     if not CONFIG.exists():
-        raise SystemExit(f"No preview config at {CONFIG}")
+        raise SystemExit(f"{APP.name} has no config at {CONFIG}; open it once first.")
+    print(f"Driving {APP} ({BUNDLE_ID})")
 
     backup = CONFIG.with_suffix(".json.editor-test-backup")
     shutil.copy2(CONFIG, backup)
