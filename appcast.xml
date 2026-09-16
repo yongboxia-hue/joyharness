@@ -3,6 +3,14 @@
     <channel>
         <title>JoyHarness</title>
         <item>
+            <title>0.2.0</title>
+            <pubDate>Wed, 16 Sep 2026 16:04:51 +0000</pubDate>
+            <sparkle:version>0.2.0</sparkle:version>
+            <sparkle:shortVersionString>0.2.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://joyharness-1305183734.cos.ap-shanghai.myqcloud.com/JoyHarness-macos-v0.2.0.dmg" length="21053307" type="application/octet-stream" sparkle:edSignature="Ff78aGSZwF/U1UY/MHq9fXX7BLibC7RUM2iVwqmpTBct9xGq6plAvZlISl1+2wD2YZa8/8S/frrcPnKugrqpAQ=="/>
+        </item>
+        <item>
             <title>0.1.9</title>
             <pubDate>Tue, 15 Sep 2026 15:18:15 +0000</pubDate>
             <sparkle:version>0.1.9</sparkle:version>
@@ -17,14 +25,6 @@
             <sparkle:shortVersionString>0.1.8</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
             <enclosure url="https://github.com/yongboxia-hue/joyharness/releases/download/v0.1.8/JoyHarness-macos-v0.1.8.dmg" length="21299002" type="application/octet-stream" sparkle:edSignature="AEsDdwWuMcXKy1a3WdVZUn0AC3I39cXbsa6FrLYGFVmcKmyZKGIcN5ehrxZhgN6aRZ1jqFZ9QEKjolVhQwcrBg=="/>
-        </item>
-        <item>
-            <title>0.1.7</title>
-            <pubDate>Tue, 15 Sep 2026 08:31:16 +0800</pubDate>
-            <sparkle:version>0.1.7</sparkle:version>
-            <sparkle:shortVersionString>0.1.7</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/yongboxia-hue/joyharness/releases/download/v0.1.7/JoyHarness-macos-v0.1.7.dmg" length="22106781" type="application/octet-stream" sparkle:edSignature="RQGQePag4ORRUxczK59WSHcfjYlX4svk2TQFGXhbWWg0uJKIoaC5k0A/4nMseOVWSw942DvV3GDeJpKorWiCCw=="/>
         </item>
     </channel>
 </rss>
