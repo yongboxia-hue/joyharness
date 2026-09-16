@@ -77,8 +77,7 @@
           "RStick": {
             "action": "passthrough",
             "keys": [
-              "ctrl",
-              "x"
+              "space"
             ]
           },
           "SR": {
@@ -197,8 +196,7 @@
           "LStick": {
             "action": "passthrough",
             "keys": [
-              "ctrl",
-              "x"
+              "space"
             ]
           },
           "SL": {
