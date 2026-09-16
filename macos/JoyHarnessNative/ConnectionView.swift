@@ -53,8 +53,12 @@ struct ConnectionView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
+                    // Which controller this is about. Both pages read the
+                    // same config, but they can be showing different halves of
+                    // it, and a summary that does not say which hand it means
+                    // looks like a summary that did not update.
                     JoySectionHeader(
-                        "常用按键",
+                        "常用按键 · \(state.previewSide == .left ? "左手柄" : "右手柄")",
                         trailing: AnyView(
                             Button("全部配置") { state.selectedPage = .mapping }
                                 .buttonStyle(JoyLinkButtonStyle())
@@ -101,8 +105,13 @@ struct ConnectionView: View {
                                 detail: responseDetail,
                                 tint: responseTint,
                                 trailing: AnyView(
-                                    Button(state.isChangingPauseState ? "处理中…" : (state.paused ? "继续响应" : "暂停响应")) {
+                                    Button {
                                         state.togglePaused()
+                                    } label: {
+                                        SteadyTitle(
+                                            state.isChangingPauseState ? "处理中…" : (state.paused ? "继续响应" : "暂停响应"),
+                                            of: ["暂停响应", "继续响应", "处理中…"]
+                                        )
                                     }
                                     .buttonStyle(SecondaryButtonStyle())
                                     .disabled(!state.serviceRunning || state.isChangingPauseState)
@@ -148,7 +157,7 @@ struct ConnectionView: View {
         switch state.availability {
         case .ready: return "现在按手柄，Mac 就有反应。"
         case .paused: return "手柄还连着，只是暂时不动作。"
-        case .permissionRequired: return "先去「关于」里授权。"
+        case .permissionRequired: return "先去「设置」里授权。"
         case .serviceStopped: return "JoyHarness 没在运行。"
         case .disconnected: return "连上任意一只手柄就能用。"
         }
@@ -210,19 +219,25 @@ struct ConnectionView: View {
     private func recoveryAction(for availability: AvailabilityState) -> some View {
         switch availability {
         case .serviceStopped:
-            Button(state.isPerformingServiceAction ? "正在启动…" : "重新启动") { state.startService() }
-                .buttonStyle(SecondaryButtonStyle())
-                .disabled(state.isPerformingServiceAction)
+            Button { state.startService() } label: {
+                SteadyTitle(state.isPerformingServiceAction ? "正在启动…" : "重新启动",
+                            of: ["重新启动", "正在启动…"])
+            }
+            .buttonStyle(SecondaryButtonStyle())
+            .disabled(state.isPerformingServiceAction)
         case .permissionRequired:
-            Button("前往授权") { state.selectedPage = .about }
+            Button("前往授权") { state.selectedPage = .settings }
                 .buttonStyle(SecondaryButtonStyle())
         case .disconnected:
             Button("打开蓝牙设置") { state.openBluetoothSettings() }
                 .buttonStyle(SecondaryButtonStyle())
         case .paused:
-            Button(state.isChangingPauseState ? "处理中…" : "继续响应") { state.togglePaused() }
-                .buttonStyle(SecondaryButtonStyle())
-                .disabled(state.isChangingPauseState)
+            Button { state.togglePaused() } label: {
+                SteadyTitle(state.isChangingPauseState ? "处理中…" : "继续响应",
+                            of: ["继续响应", "处理中…"])
+            }
+            .buttonStyle(SecondaryButtonStyle())
+            .disabled(state.isChangingPauseState)
         case .ready:
             EmptyView()
         }
@@ -328,7 +343,7 @@ struct ConnectionView: View {
     ]
 
     private var previewMappings: [MappingPreviewItem] {
-        let side: ControllerSide = state.leftController.connected && !state.rightController.connected ? .left : .right
+        let side = state.previewSide
         let cards = state.mappingCards(for: side)
         var result: [MappingPreviewItem] = []
 

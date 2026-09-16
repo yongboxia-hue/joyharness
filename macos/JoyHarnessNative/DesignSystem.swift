@@ -82,6 +82,32 @@ struct JoyCard<Content: View>: View {
     }
 }
 
+/// A button title that can change without the button changing width.
+///
+/// 保存 becoming 保存中… is two characters wider, so the button grew and
+/// everything beside it jumped -- for the tenth of a second a save takes,
+/// which reads as a flinch rather than as progress. Every state the title can
+/// be is laid out invisibly underneath, so the width is the widest of them
+/// from the start.
+struct SteadyTitle: View {
+    let title: String
+    let states: [String]
+
+    init(_ title: String, of states: [String]) {
+        self.title = title
+        self.states = states
+    }
+
+    var body: some View {
+        ZStack {
+            ForEach(states, id: \.self) { state in
+                Text(state).hidden()
+            }
+            Text(title)
+        }
+    }
+}
+
 struct StatusPill: View {
     let text: String
     let color: Color

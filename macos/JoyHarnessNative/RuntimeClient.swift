@@ -14,11 +14,11 @@ enum RuntimeClientError: LocalizedError {
         case .busy:
             return "上一步还没做完，稍等一下。"
         case .timeout:
-            return "JoyHarness 没有响应。在「关于 → 系统」里重启一次再试。"
+            return "JoyHarness 没有响应。在「关于」里重启一次再试。"
         case .rejected(let message):
             return message
         case .invalidResponse:
-            return "出了点问题。在「关于 → 系统」里重启一次再试。"
+            return "出了点问题。在「关于」里重启一次再试。"
         }
     }
 }

@@ -16,6 +16,7 @@ struct RootView: View {
                         switch state.selectedPage {
                         case .connection: ConnectionView()
                         case .mapping: MappingView()
+                        case .settings: SettingsView()
                         case .about: AboutView()
                         }
                     }

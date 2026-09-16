@@ -275,12 +275,14 @@ struct MappingEditorSheet: View {
                 Button("取消") { dismiss() }
                     .buttonStyle(SecondaryButtonStyle())
                     .accessibilityIdentifier("mapping-editor-cancel")
-                Button(state.isSavingMapping ? "保存中…" : "保存") {
+                Button {
                     saveError = nil
                     state.saveMapping(draft) { failure in
                         saveError = failure
                         if failure == nil { dismiss() }
                     }
+                } label: {
+                    SteadyTitle(state.isSavingMapping ? "保存中…" : "保存", of: ["保存", "保存中…"])
                 }
                 .buttonStyle(PrimaryButtonStyle())
                 .disabled(state.isSavingMapping)

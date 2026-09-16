@@ -42,7 +42,7 @@ struct MappingView: View {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(JoyTheme.orange)
             Text("还没授权，改了也暂时不生效。").font(.system(size: 12))
             Spacer()
-            Button("前往关于页面") { state.selectedPage = .about }.buttonStyle(SecondaryButtonStyle())
+            Button("前往设置") { state.selectedPage = .settings }.buttonStyle(SecondaryButtonStyle())
         }
         .padding(.horizontal, 12)
         .frame(height: 42)

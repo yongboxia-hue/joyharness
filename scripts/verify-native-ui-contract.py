@@ -62,6 +62,7 @@ mapping_editor = read("macos", "JoyHarnessNative", "MappingEditor.swift")
 action_catalog = read("macos", "JoyHarnessNative", "ActionCatalog.swift")
 design = read("macos", "JoyHarnessNative", "DesignSystem.swift")
 about_view = read("macos", "JoyHarnessNative", "AboutView.swift")
+settings_view = read("macos", "JoyHarnessNative", "SettingsView.swift")
 onboarding_view = read("macos", "JoyHarnessNative", "OnboardingView.swift")
 runtime_manager = read("macos", "JoyHarnessNative", "RuntimeManager.swift")
 status_bar = read("macos", "JoyHarnessNative", "StatusBarController.swift")
@@ -342,10 +343,10 @@ require(app_model, "enum AppAppearance", "three-state appearance model")
 require(app_model, "SMAppService.mainApp.register()", "native login-item registration")
 require(app_model, "SMAppService.mainApp.unregister()", "native login-item removal")
 require(app_model, "UserDefaults.standard.set(value.rawValue", "appearance persistence")
-require(about_view, '.accessibilityIdentifier("appearance-picker")', "appearance picker accessibility contract")
-require(about_view, '.accessibilityIdentifier("launch-at-login-toggle")', "login-item toggle accessibility contract")
+require(settings_view, '.accessibilityIdentifier("appearance-picker")', "appearance picker accessibility contract")
+require(settings_view, '.accessibilityIdentifier("launch-at-login-toggle")', "login-item toggle accessibility contract")
 require(about_view, '.accessibilityIdentifier("export-diagnostics")', "diagnostic export action")
-require(about_view, "辅助功能授权", "accessibility grant row")
+require(settings_view, "辅助功能授权", "accessibility grant row")
 require(about_view, "重启服务", "service restart action")
 require(root_view, "state.isShowingOnboarding", "first-run onboarding presentation")
 require(onboarding_view, "private var pendingCheck", "one-at-a-time shortcut onboarding")
@@ -378,13 +379,29 @@ require(menu_bar_icon, "image.isTemplate = true", "native template image")
 require(menu_bar_icon, "case paused", "paused menu-bar badge")
 require(menu_bar_icon, "case warning", "warning menu-bar badge")
 
-forbid(about_view, '.disabled(state.buildFlavor == "preview")', "Preview still disables the login-item control")
+forbid(settings_view, '.disabled(state.buildFlavor == "preview")', "Preview still disables the login-item control")
 all_swift = "\n".join(path.read_text(encoding="utf-8") for path in NATIVE.glob("*.swift"))
 forbid(all_swift, "onTapGesture", "Native client still contains gesture-only click targets")
 forbid(all_swift, "inputMonitoring", "Native client still requires Input Monitoring")
 check(not (NATIVE / "PermissionsView.swift").exists(),
-      "PermissionsView is back; authorization belongs in AboutView")
-forbid(about_view, "后台服务", "关于 exposes the runtime process; users get one 重启服务 action instead")
+      "PermissionsView is back; authorization belongs in SettingsView")
+check((NATIVE / "SettingsView.swift").exists(), "SettingsView.swift is gone")
+for _control in ("appearance-picker", "launch-at-login-toggle",
+                 "idle-sleep-toggle", "auto-update-toggle"):
+    forbid(about_view, _control,
+           f"关于 carries the {_control} control again; preferences belong on 设置")
+check("case settings" in app_model and "case .settings: SettingsView()" in root_view,
+      "the 设置 page is no longer reachable from the sidebar")
+# Every route to the grant points at the page the grant is on. (关于
+# JoyHarness still opens 关于, which is what that menu item is for.)
+for _source, _where in ((connection_view, "连接"), (mapping_view, "按键")):
+    check("selectedPage = .about" not in _source,
+          f"{_where} still sends the user to 关于 to authorize; the grant lives on 设置")
+check("openPermissions" in status_bar
+      and "selectedPage = .settings" in status_bar.split("func openPermissions")[1][:200],
+      "the menu bar's authorize item no longer opens 设置")
+for _page, _name in ((about_view, "关于"), (settings_view, "设置")):
+    forbid(_page, "后台服务", f"{_name} exposes the runtime process; users get one 重启服务 action instead")
 
 # --------------------------------------------------------------------------
 # 9. Fixes whose failure mode is to come back quietly.

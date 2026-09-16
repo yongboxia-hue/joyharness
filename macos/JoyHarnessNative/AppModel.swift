@@ -7,6 +7,7 @@ import ServiceManagement
 enum SidebarPage: String, CaseIterable, Identifiable {
     case connection
     case mapping
+    case settings
     case about
 
     var id: String { rawValue }
@@ -15,6 +16,7 @@ enum SidebarPage: String, CaseIterable, Identifiable {
         switch self {
         case .connection: return "连接"
         case .mapping: return "按键"
+        case .settings: return "设置"
         case .about: return "关于"
         }
     }
@@ -23,6 +25,7 @@ enum SidebarPage: String, CaseIterable, Identifiable {
         switch self {
         case .connection: return "link"
         case .mapping: return "keyboard"
+        case .settings: return "slider.horizontal.3"
         case .about: return "info.circle"
         }
     }
@@ -145,7 +148,12 @@ final class AppState: ObservableObject {
     @Published var mappingConfigError: String?
     @Published var mappingDraft: MappingEditDraft?
     @Published var isSavingMapping = false
-    @Published var mappingSide: ControllerSide = .right
+    @Published var mappingSide: ControllerSide = .right {
+        didSet { mappingSideWasChosen = true }
+    }
+    /// Set once the user picks a side by hand, after which the connection no
+    /// longer moves it under them.
+    private var mappingSideWasChosen = false
     @Published var isRefreshingStatus = false
     @Published var isShowingOnboarding = false { didSet { syncOnboardingOutputHold() } }
     @Published var onboardingStep = 0 { didSet { syncOnboardingOutputHold() } }
@@ -312,7 +320,32 @@ final class AppState: ObservableObject {
         if leftController != left { leftController = left }
         let right = ControllerStatusParser.parse(battery["R"])
         if rightController != right { rightController = right }
+        followConnectedControllerIfUnchosen()
         processOnboardingInputEvents(RuntimeInputEvent.parse(payload["input_events"]))
+    }
+
+    /// Open the 按键 page on the controller that is actually in the user's
+    /// hand. Only while they have not chosen a side themselves -- once they
+    /// have, the page stays where they put it.
+    private func followConnectedControllerIfUnchosen() {
+        guard !mappingSideWasChosen else { return }
+        let connected: ControllerSide?
+        switch (leftController.connected, rightController.connected) {
+        case (true, false): connected = .left
+        case (false, true): connected = .right
+        default: connected = nil
+        }
+        guard let connected, connected != mappingSide else { return }
+        let chosen = mappingSideWasChosen
+        mappingSide = connected
+        mappingSideWasChosen = chosen
+    }
+
+    /// Which side the 连接 page summarises: the one that is connected, and the
+    /// right one when both or neither are. Named here so the page can say so
+    /// rather than leaving the reader to guess which hand it means.
+    var previewSide: ControllerSide {
+        leftController.connected && !rightController.connected ? .left : .right
     }
 
     func refreshStatusWithFeedback() {

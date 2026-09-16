@@ -26,6 +26,8 @@ clang \
 # card-opens-the-editor assertion passed or failed depending on which window
 # happened to be in front. Bring the app forward first and let it settle.
 open -a "$APP_PATH"
-sleep 1
+# A cold launch is still laying out when a one-second wait ends, and the
+# first synthetic click then lands on a window that is not ready for it.
+sleep 3
 
 "$WORK_DIR/verify-native-hit-targets" "$PID"

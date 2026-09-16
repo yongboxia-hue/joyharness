@@ -26,8 +26,8 @@ enum ActionCatalog {
     static let names: [String: String] = [
         "disabled": "未设置",
         "app_switch_mode": "切换应用",
-        "window_switch": "聚焦窗口",
-        "focus_input": "聚焦输入框",
+        "window_switch": "切换窗口",
+        "focus_input": "聚焦",
         "screenshot": "截图",
         "window_picker": "选择窗口",
         "macro": "执行宏",
@@ -62,7 +62,10 @@ enum ActionCatalog {
            let explained = actionMeanings[action] {
             return explained
         }
-        return "常用操作"
+        // Nothing to say about a shortcut this app has no opinion on. It used
+        // to answer 常用操作, which says nothing while looking like it does --
+        // ⌘⇧5 is not a "common action", it is whatever the user bound it to.
+        return ""
     }
 
     private static let shortcutMeanings: [String: String] = [
@@ -83,10 +86,13 @@ enum ActionCatalog {
     ]
 
     private static let actionMeanings: [String: String] = [
-        "app_switch_mode": "在应用之间切换",
-        "window_switch": "获取窗口焦点",
-        "window_picker": "获取窗口焦点",
-        "focus_input": "光标进入输入框",
+        // A meaning explains, it does not restate the name: 切换应用 /
+        // 在应用之间切换 was the same sentence twice, in a column built to
+        // hold two different things.
+        "app_switch_mode": "停在切换器里挑",
+        "window_switch": "在当前应用的窗口间挑",
+        "window_picker": "在当前应用的窗口间挑",
+        "focus_input": "把光标放进输入框",
         "screenshot": "截取当前屏幕",
         "macro": "执行一串预设操作",
         "exec": "运行一条命令"

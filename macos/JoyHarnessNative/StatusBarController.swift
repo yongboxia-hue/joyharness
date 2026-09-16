@@ -137,7 +137,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func openPermissions() {
-        state.selectedPage = .about
+        state.selectedPage = .settings
         JoyHarnessAppDelegate.showMainWindow()
     }
 

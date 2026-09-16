@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
     // asserts PermissionsView stays deleted. This list kept asking for its
     // sidebar row anyway, so the check failed on the one thing that was
     // working as designed and never got as far as the cards below it.
-    const char *names[] = {"sidebar-connection", "sidebar-mapping", "sidebar-about"};
+    const char *names[] = {"sidebar-connection", "sidebar-mapping", "sidebar-settings", "sidebar-about"};
     for (size_t index = 0; index < sizeof(names) / sizeof(names[0]); index++) {
         CFStringRef identifier = CFStringCreateWithCString(NULL, names[index], kCFStringEncodingUTF8);
         AXUIElementRef button = find_identifier(app, identifier);
