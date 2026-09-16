@@ -75,6 +75,17 @@ int main(int argc, char **argv) {
     AXUIElementSetAttributeValue(app, kAXFrontmostAttribute, kCFBooleanTrue);
     usleep(1200000);
 
+    // Close anything modal before touching the sidebar. A sheet left open by
+    // an earlier run -- or by a person -- swallows every click behind it, and
+    // the failure that produces ("the sidebar did not respond") points at the
+    // wrong thing entirely.
+    AXUIElementRef leftover = find_identifier(app, CFSTR("mapping-editor-cancel"));
+    if (leftover) {
+        AXUIElementPerformAction(leftover, kAXPressAction);
+        CFRelease(leftover);
+        usleep(500000);
+    }
+
     // Park the window at a known spot first. The window is 1180 points wide,
     // so wherever the user last dragged it the right-hand column of cards can
     // hang off the side of the display -- and a synthetic click posted to a
@@ -171,6 +182,16 @@ int main(int argc, char **argv) {
         return 1;
     }
     CFRelease(editor);
+
+    // Put the app back the way it was found. The editor is a modal sheet, and
+    // a sheet left open blocks every click behind it -- so this check used to
+    // pass once and then fail on its own leftovers the next time it ran.
+    AXUIElementRef cancel = find_identifier(app, CFSTR("mapping-editor-cancel"));
+    if (cancel) {
+        AXUIElementPerformAction(cancel, kAXPressAction);
+        CFRelease(cancel);
+        usleep(400000);
+    }
     printf("mapping-card-right-ZR %.0fx%.0f passed\n", cardFrame.size.width, cardFrame.size.height);
     CFRelease(app);
     puts("Native hit-target verification passed.");

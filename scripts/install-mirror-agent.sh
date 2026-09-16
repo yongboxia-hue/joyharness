@@ -29,6 +29,24 @@ if [ "${1:-}" = "--uninstall" ]; then
   exit 0
 fi
 
+# launchd stores an absolute path, and a worktree is a temporary directory by
+# design -- an agent installed from one keeps pointing at a path that will not
+# exist after the branch is merged and the worktree removed. Install from the
+# checkout that stays.
+common_dir="$(git rev-parse --git-common-dir 2>/dev/null || true)"
+this_dir="$(git rev-parse --git-dir 2>/dev/null || true)"
+if [ -n "$common_dir" ] && [ "$common_dir" != "$this_dir" ]; then
+  main_checkout="$(cd "$(dirname "$common_dir")" && pwd)"
+  cat >&2 <<NOTE
+This is a worktree, and launchd would remember its path after it is gone.
+
+Install from the main checkout instead, once this branch is merged:
+
+  cd $main_checkout && scripts/install-mirror-agent.sh
+NOTE
+  exit 1
+fi
+
 mkdir -p "$(dirname "$PLIST")" "$LOG_DIR"
 
 cat > "$PLIST" <<PLIST_END
