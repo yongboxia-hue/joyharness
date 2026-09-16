@@ -70,7 +70,7 @@ final class RuntimeManager {
         } catch {
             try? logHandle?.close()
             logHandle = nil
-            state.lastError = "无法启动后台服务：\(error.localizedDescription)"
+            state.lastError = "JoyHarness 没能启动：\(error.localizedDescription)"
         }
     }
 
@@ -182,10 +182,10 @@ final class RuntimeManager {
     /// this existed.
     static func stopReason(for status: Int32) -> String {
         if status == runtimeAlreadyRunningExitCode {
-            return "已经有一个 JoyHarness 后台服务在运行了。"
-                + "如果手柄没有反应，请退出 JoyHarness 再重新打开。"
+            return "已经有一个 JoyHarness 在运行了。"
+                + "如果手柄没反应，退出 JoyHarness 再打开一次。"
         }
-        return "JoyHarness 意外停止了（代码 \(status)），可以在连接页重新启动。"
+        return "JoyHarness 意外停止了，可以在连接页重新启动。（代码 \(status)）"
     }
 
     /// Start a fresh log once the current one gets big.
@@ -294,14 +294,14 @@ enum RuntimeManagerError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingResources:
-            return "App 资源目录不完整。"
+            return "JoyHarness 少了一些文件，可能是没装全。重新安装一次。"
         case .missingRuntimeForArchitecture(let architecture):
             // 说清楚是哪一半缺了：装错架构的包是这里唯一会发生的事，
             // 而"找不到运行时"本身不足以让人知道该换哪个下载。
             return "这个安装包不包含 \(architecture) 版本的运行时，"
                 + "请下载通用版本的 JoyHarness。"
         case .missingDefaultConfiguration:
-            return "找不到默认按键配置。"
+            return "找不到默认的按键配置，可能是没装全。重新安装一次。"
         }
     }
 }

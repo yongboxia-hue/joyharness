@@ -70,18 +70,18 @@ struct OnboardingView: View {
                 .lineSpacing(5)
                 .fixedSize(horizontal: false, vertical: true)
             if state.onboardingStep == 0 {
-                Text("语音识别由你自己选的输入法完成，JoyHarness 不含这一段。我们自己用 Typeless 和豆包，换成别的也可以。")
+                Text("说的话怎么变成字，是你自己选的输入法在做，JoyHarness 不含这一段。我们用 Typeless 和豆包，换成别的也可以。")
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             if state.onboardingStep == AppState.onboardingButtonTestStep {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("左、右 Joy-Con 都可以独立配置；下面按的是当前连着的那只。")
+                    Text("左右手柄可以分别配置。下面按的是现在连着的这只。")
                     // 没有这句，新用户按下 fn 什么也不会发生，然后判定产品坏了 ——
                     // 而这恰恰是它在正常工作：JoyHarness 的责任到"发出快捷键"为止。
-                    Text("其中 fn 是语音输入的启动键。JoyHarness 只负责把它发出去，"
-                         + "要让它有反应，得先在你的语音输入法里把启动快捷键设成 fn。")
+                    Text("其中 fn 是用来启动语音输入的。JoyHarness 只负责把它发出去 —— "
+                         + "要让它真的有反应，得先在你的语音输入法里把启动快捷键设成 fn。")
                 }
                 .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
@@ -110,7 +110,7 @@ struct OnboardingView: View {
                     .scaledToFit()
                     .frame(maxWidth: 390, maxHeight: 320)
             }
-            Text("按自己的习惯配置每个按键")
+            Text("每个键发什么，你自己定")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.secondary)
         }
@@ -122,7 +122,7 @@ struct OnboardingView: View {
             onboardingRow(
                 symbol: "keyboard.badge.ellipsis",
                 title: "辅助功能",
-                detail: "用于发送你配置的快捷键",
+                detail: "有了它才能替你按键盘",
                 complete: state.accessibilityGranted,
                 action: state.requestAccessibility
             )
@@ -210,7 +210,7 @@ struct OnboardingView: View {
                     }
                 }
             } else {
-                Label("\(workflowChecks.count) 项按键都检测到了", systemImage: "checkmark.circle.fill")
+                Label("\(workflowChecks.count) 个键都有反应", systemImage: "checkmark.circle.fill")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(JoyTheme.green)
             }
@@ -321,15 +321,15 @@ struct OnboardingView: View {
     }
 
     private var stepTitle: String {
-        ["把语音工作流握在手里", "允许必要权限", "连接任意一只 Joy-Con", "完成第一次按键测试"][state.onboardingStep]
+        ["把语音输入握在手里", "先授权", "连一只手柄", "试几个键"][state.onboardingStep]
     }
 
     private var stepBody: String {
         [
-            "用任意一只 Joy-Con 启动语音输入、连续听写和确认发送，减少双手在键盘和鼠标之间来回切换。每个按键发什么快捷键，都由你自己配置。",
-            "辅助功能权限让 JoyHarness 能够发送快捷键。JoyHarness 不监听你的键盘输入，也不读取输入内容。",
-            "在系统蓝牙设置中连接任意一只 Joy-Con，连上就会自动继续。",
-            "按提示逐个试一下。这一步只是确认手柄有反应，按键不会真的发出快捷键。检测到了会自动跳到下一步。"
+            "把手柄握在另一只手里，用它启动语音输入、确认发送、切换窗口 —— 手不用离开鼠标回到键盘。每个键发什么，你自己定。",
+            "JoyHarness 要替你按键盘，macOS 得先点头。它不会读你打的字，也不记录你按了什么。",
+            "在系统蓝牙设置里连上任意一只手柄。连上了这一步会自己往下走。",
+            "按提示逐个按一下，确认手柄有反应。这一步不会真的发出快捷键。"
         ][state.onboardingStep]
     }
 
@@ -343,13 +343,13 @@ struct OnboardingView: View {
     }
 
     private var nextTitle: String {
-        state.onboardingStep == stepCount - 1 ? "进入 JoyHarness" : "继续"
+        state.onboardingStep == stepCount - 1 ? "开始用" : "继续"
     }
 
     private var shortcutBlocker: String {
-        if !state.serviceRunning { return "JoyHarness 暂时没有在运行。" }
-        if !state.permissionsSatisfied { return "需要先完成辅助功能授权。" }
-        return "需要先连接任意一只 Joy-Con。"
+        if !state.serviceRunning { return "JoyHarness 现在没在运行。" }
+        if !state.permissionsSatisfied { return "要先授权。" }
+        return "要先连上一只手柄。"
     }
 
     private var hasOnboardingController: Bool {

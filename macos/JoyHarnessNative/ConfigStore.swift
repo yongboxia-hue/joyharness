@@ -11,9 +11,9 @@ enum ConfigStoreError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidRoot: return "配置文件格式不正确。"
-        case .missingProfiles: return "配置中缺少手柄 profile。"
-        case .missingProfile(let name): return "配置中缺少 \(name) profile。"
+        case .invalidRoot: return "按键配置的格式不对。"
+        case .missingProfiles: return "按键配置里少了手柄那一部分。"
+        case .missingProfile(let name): return "按键配置里少了 \(name) 那一部分。"
         case .rollbackFailed(let saveError, let rollbackError):
             return "改动没有生效，原来的设置也没能恢复（\(saveError.localizedDescription) / "
                 + "\(rollbackError.localizedDescription)）。备份在 config/backups 里。"

@@ -26,7 +26,7 @@ struct RootView: View {
             }
         }
         .alert(
-            "操作没有完成",
+            "这一步没能完成",
             isPresented: Binding(
                 get: { state.lastError != nil },
                 set: { if !$0 { state.dismissError() } }
@@ -34,7 +34,7 @@ struct RootView: View {
         ) {
             Button("知道了", role: .cancel) { state.dismissError() }
         } message: {
-            Text(state.lastError ?? "请稍后重试。")
+            Text(state.lastError ?? "稍后再试一次。")
         }
     }
 

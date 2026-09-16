@@ -9,7 +9,7 @@ struct MappingView: View {
         VStack(spacing: 0) {
             PageTitle(
                 "按键",
-                subtitle: "点任意一个按键，修改它发出的快捷键。",
+                subtitle: "点任意一个按键，改它发出的快捷键。",
                 trailing: AnyView(
                     Picker("手柄", selection: $state.mappingSide) {
                         ForEach(ControllerSide.allCases) { Text($0.title).tag($0) }
@@ -40,7 +40,7 @@ struct MappingView: View {
     private var permissionNotice: some View {
         HStack(spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(JoyTheme.orange)
-            Text("还没有授权，这些配置暂时不会生效。").font(.system(size: 12))
+            Text("还没授权，改了也暂时不生效。").font(.system(size: 12))
             Spacer()
             Button("前往关于页面") { state.selectedPage = .about }.buttonStyle(SecondaryButtonStyle())
         }
@@ -308,7 +308,7 @@ struct MappingView: View {
                     .position(x: 155, y: 267)
             }
 
-            Text(side == .left ? "左 Joy-Con" : "右 Joy-Con")
+            Text(side == .left ? "左手柄" : "右手柄")
                 .font(.system(size: 11))
                 .foregroundStyle(JoyTheme.detail)
                 .position(x: 155, y: 493)

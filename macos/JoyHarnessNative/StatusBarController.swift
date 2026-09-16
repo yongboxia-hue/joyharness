@@ -84,15 +84,15 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(impact)
         menu.addItem(.separator())
 
-        menu.addItem(disabledItem(controllerTitle("左 Joy-Con", status: state.leftController)))
-        menu.addItem(disabledItem(controllerTitle("右 Joy-Con", status: state.rightController)))
+        menu.addItem(disabledItem(controllerTitle("左手柄", status: state.leftController)))
+        menu.addItem(disabledItem(controllerTitle("右手柄", status: state.rightController)))
         menu.addItem(.separator())
 
         switch state.availability {
         case .serviceStopped:
-            menu.addItem(actionItem("重新启动服务", #selector(startService)))
+            menu.addItem(actionItem("重新启动 JoyHarness", #selector(startService)))
         case .permissionRequired:
-            menu.addItem(actionItem("打开权限页面", #selector(openPermissions)))
+            menu.addItem(actionItem("去授权", #selector(openPermissions)))
         case .disconnected:
             menu.addItem(actionItem("打开蓝牙设置", #selector(openBluetooth)))
         case .paused:
@@ -102,7 +102,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         }
 
         menu.addItem(actionItem("打开主窗口", #selector(openMainWindow)))
-        menu.addItem(actionItem("重新检测手柄", #selector(refreshStatus)))
+        menu.addItem(actionItem("重新找一次手柄", #selector(refreshStatus)))
         menu.addItem(.separator())
         menu.addItem(actionItem("关于 JoyHarness", #selector(openAbout)))
         menu.addItem(actionItem("退出 JoyHarness", #selector(quitApp)))

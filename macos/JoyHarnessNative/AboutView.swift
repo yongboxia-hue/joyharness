@@ -18,27 +18,24 @@ struct AboutView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                PageTitle("关于", subtitle: "授权、偏好和支持。")
+                PageTitle("关于", subtitle: "在这里授权、改设置，出问题时也从这里排查。")
 
                 JoyCard {
-                    HStack(alignment: .top, spacing: 20) {
+                    HStack(spacing: 20) {
                         if let icon = state.appIcon {
                             Image(nsImage: icon)
                                 .resizable()
                                 .scaledToFit()
                                 .frame(width: 94, height: 94)
                         }
-                        VStack(alignment: .leading, spacing: 8) {
-                            StatusPill(text: versionLabel, color: JoyTheme.blue)
+                        VStack(alignment: .leading, spacing: 7) {
                             Text("JoyHarness")
                                 .font(.system(size: 25, weight: .bold, design: .rounded))
                             Text("把 Joy-Con 变成快捷键控制器")
                                 .font(.system(size: 15, weight: .semibold))
-                            Text("将 Joy-Con 按键映射为 macOS 快捷键，并按你的工作方式自由配置。")
+                            Text(versionLabel)
                                 .font(.system(size: 12))
                                 .foregroundStyle(JoyTheme.detail)
-                                .lineSpacing(3)
-                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 }
@@ -111,18 +108,18 @@ struct AboutView: View {
                             // Not "已授权。" -- the pill beside it already
                             // says that word. A row says one thing once.
                             detail: state.accessibilityGranted
-                                ? "Joy-Con 现在可以发出快捷键。"
-                                : "授权后 Joy-Con 才能发出快捷键。",
+                                ? "JoyHarness 可以替你按键盘了。"
+                                : "授权之后，JoyHarness 才能替你按键盘。",
                             tint: state.accessibilityGranted ? JoyTheme.green : JoyTheme.orange,
                             trailing: AnyView(accessibilityAction)
                         )
                         Divider().padding(.leading, 47).padding(.vertical, 12)
                         InfoRow(
                             symbol: "moon.zzz",
-                            title: "手柄空闲时自动休眠",
+                            title: "手柄闲着的时候自动休眠",
                             detail: state.idleSleepEnabled
-                                ? "闲置 \(Int(state.idleSleepMinutes)) 分钟后手柄会断开并休眠，按任意键唤醒。"
-                                : "读取按键需要手柄持续上报，长时间连接较为耗电。开启后闲置一段时间会让它休眠。",
+                                ? "放着不用 \(Int(state.idleSleepMinutes)) 分钟就自己睡，按一下手柄就醒。"
+                                : "手柄一直连着会耗电。开启后放着不用它会自己睡，按一下就醒。",
                             tint: .secondary,
                             trailing: AnyView(
                                 Toggle("", isOn: Binding(
@@ -165,8 +162,8 @@ struct AboutView: View {
                             symbol: "arrow.clockwise",
                             title: "重启服务",
                             detail: state.serviceRunning
-                                ? "按键没反应时，重启一次通常能恢复。"
-                                : "当前没有运行，按键不会有反应。",
+                                ? "手柄按了没反应时，重启一次通常就好了。"
+                                : "现在没在运行，按手柄不会有反应。",
                             tint: state.serviceRunning ? .secondary : .red,
                             trailing: AnyView(
                                 Button(state.isPerformingServiceAction ? "处理中…" : "重启") {
@@ -188,7 +185,7 @@ struct AboutView: View {
                         InfoRow(
                             symbol: "sparkles.rectangle.stack",
                             title: "首次使用引导",
-                            detail: "重新走一遍授权、连接和按键测试。",
+                            detail: "从头走一遍：授权、连手柄、试按键。",
                             trailing: AnyView(
                                 Button("重新查看") { state.showOnboarding() }
                                     .buttonStyle(SecondaryButtonStyle())
@@ -198,7 +195,7 @@ struct AboutView: View {
                         InfoRow(
                             symbol: "stethoscope",
                             title: "运行诊断",
-                            detail: "在本地生成一份排查用的文件，不会上传。",
+                            detail: "在本机生成一份排查用的文件，不会上传到任何地方。",
                             trailing: AnyView(
                                 Button(state.isExportingDiagnostics ? "正在导出…" : "导出诊断包") { state.exportDiagnostics() }
                                     .buttonStyle(SecondaryButtonStyle())
@@ -211,7 +208,7 @@ struct AboutView: View {
                 }
 
                 if state.buildFlavor == "preview" {
-                    Text("Preview 的外观和登录项只作用于 Preview 身份，不会替换正式 App 或改变正式 App 的设置。")
+                    Text("这是 Preview 版。它的外观和登录项设置只属于自己，不会动到你正式装的那个 JoyHarness。")
                         .font(.system(size: 12))
                         .foregroundStyle(JoyTheme.detail)
                         .padding(.horizontal, 4)

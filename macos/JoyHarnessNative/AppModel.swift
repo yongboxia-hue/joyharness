@@ -63,7 +63,7 @@ enum AvailabilityState: Equatable {
         switch self {
         case .serviceStopped: return "JoyHarness 暂时没有在运行"
         case .permissionRequired: return "还需要完成系统授权"
-        case .disconnected: return "等待 Joy-Con 连接"
+        case .disconnected: return "还没有连上手柄"
         case .paused: return "按键响应已暂停"
         case .ready: return "已就绪"
         }
@@ -82,15 +82,15 @@ enum AvailabilityState: Equatable {
     var detail: String {
         switch self {
         case .serviceStopped:
-            return "按键不会发出快捷键。你的配置都还在。"
+            return "手柄按了没反应。你的配置都还在。"
         case .permissionRequired:
-            return "完成辅助功能授权后，JoyHarness 才能发送你配置的快捷键。"
+            return "先在系统里授权，JoyHarness 才能替你按键盘。"
         case .disconnected:
-            return "请先在系统蓝牙设置中连接任意一只 Joy-Con。"
+            return "在系统蓝牙设置里连上任意一只手柄就能用。"
         case .paused:
-            return "手柄仍保持连接，但当前不会执行任何快捷键。继续响应后立即恢复。"
+            return "手柄还连着，只是暂时不动作。"
         case .ready:
-            return "Joy-Con 按键会按当前配置执行。"
+            return "现在按手柄，Mac 就有反应。"
         }
     }
 
@@ -229,10 +229,10 @@ final class AppState: ObservableObject {
     }
 
     var controllerSummary: String {
-        if leftController.connected && rightController.connected { return "左右 Joy-Con 已连接" }
-        if leftController.connected { return "左 Joy-Con 已连接" }
-        if rightController.connected { return "右 Joy-Con 已连接" }
-        return "没有检测到 Joy-Con"
+        if leftController.connected && rightController.connected { return "左右手柄都连上了" }
+        if leftController.connected { return "左手柄已连接" }
+        if rightController.connected { return "右手柄已连接" }
+        return "没有找到手柄"
     }
 
     var statusSummary: String {
@@ -283,8 +283,7 @@ final class AppState: ObservableObject {
             if !hasReportedUnreadableStatus {
                 hasReportedUnreadableStatus = true
                 NSLog("JoyHarness: status.json is fresh but unreadable (\(data.count) bytes)")
-                lastError = "后台服务的状态文件读不出来。多半是同时跑着另一个旧版本的服务；"
-                    + "退出 JoyHarness 再打开一次通常能解决。"
+                lastError = "JoyHarness 读不到自己的状态。退出再打开一次，通常就好了。"
             }
         } else if hasReportedUnreadableStatus {
             hasReportedUnreadableStatus = false
@@ -346,7 +345,7 @@ final class AppState: ObservableObject {
                 try await configStore.save(root)
                 idleSleepMinutes = minutes
             } catch {
-                lastError = "未能保存休眠设置：\(error.localizedDescription)"
+                lastError = "休眠设置没保存上：\(error.localizedDescription)"
             }
             isSavingIdleSleep = false
         }
@@ -414,7 +413,7 @@ final class AppState: ObservableObject {
                 paused = confirmedState
                 refreshStatusSoon()
             } catch {
-                lastError = "无法切换暂停状态：\(error.localizedDescription)"
+                lastError = "没能切换：\(error.localizedDescription)"
             }
             isChangingPauseState = false
         }
@@ -457,7 +456,7 @@ final class AppState: ObservableObject {
             launchAtLoginDetail = "登录 Mac 后自动启动，无需手动打开。"
         case .requiresApproval:
             launchAtLoginStatus = "等待确认"
-            launchAtLoginDetail = "请在“系统设置 > 通用 > 登录项”中允许 JoyHarness。"
+            launchAtLoginDetail = "去「系统设置 → 通用 → 登录项」里允许 JoyHarness。"
         // .notFound is what a never-registered app reads as: launchd has no
         // record to look up yet, which is indistinguishable from "off" and is
         // fixed by the very toggle this row carries. Reporting it as 当前不可用
@@ -469,7 +468,7 @@ final class AppState: ObservableObject {
             launchAtLoginDetail = "开启后，登录 Mac 时会自动启动 JoyHarness。"
         @unknown default:
             launchAtLoginStatus = "状态未知"
-            launchAtLoginDetail = "无法读取系统登录项状态，请稍后重试。"
+            launchAtLoginDetail = "读不到系统里的设置，稍后再试。"
         }
     }
 
@@ -486,7 +485,7 @@ final class AppState: ObservableObject {
             refreshLaunchAtLogin()
         } catch {
             refreshLaunchAtLogin()
-            lastError = "登录项设置失败：\(error.localizedDescription)"
+            lastError = "没能改成功：\(error.localizedDescription)"
         }
     }
 
@@ -665,7 +664,7 @@ final class AppState: ObservableObject {
             } catch {
                 await MainActor.run {
                     self.isExportingDiagnostics = false
-                    self.lastError = "诊断包导出失败：\(error.localizedDescription)"
+                    self.lastError = "排查文件没能导出：\(error.localizedDescription)"
                 }
             }
         }
@@ -689,7 +688,7 @@ final class AppState: ObservableObject {
             mappingConfigError = nil
         } catch {
             mappingConfiguration = .empty
-            mappingConfigError = "无法读取当前按键配置：\(error.localizedDescription)"
+            mappingConfigError = "读不到当前的按键配置：\(error.localizedDescription)"
         }
     }
 
@@ -699,7 +698,7 @@ final class AppState: ObservableObject {
                 let root = try await configStore.loadJSONObject()
                 mappingDraft = draft(from: root, side: side, button: button, displayKey: displayKey)
             } catch {
-                lastError = "无法打开按键配置：\(error.localizedDescription)"
+                lastError = "打不开按键配置：\(error.localizedDescription)"
             }
         }
     }
@@ -723,7 +722,7 @@ final class AppState: ObservableObject {
                 mappingDraft = nil
                 completion(nil)
             } catch {
-                completion("没有保存：\(error.localizedDescription)")
+                completion("没保存上：\(error.localizedDescription)")
             }
             isSavingMapping = false
         }
@@ -848,7 +847,7 @@ final class AppState: ObservableObject {
         guard !isPerformingServiceAction else { return }
         let scriptURL = runtimeURL.appendingPathComponent("scripts/\(name)")
         guard FileManager.default.isExecutableFile(atPath: scriptURL.path) else {
-            lastError = "找不到可执行的后台服务脚本：\(scriptURL.path)"
+            lastError = "JoyHarness 少了一个组件，可能是没装全。重新安装一次。"
             return
         }
 
@@ -868,7 +867,7 @@ final class AppState: ObservableObject {
                 if process.terminationStatus != 0 {
                     self.lastError = message?.isEmpty == false
                         ? message
-                        : "后台服务操作失败，请稍后重试。"
+                        : "这一步没能完成，稍后再试。"
                 }
                 self.refreshStatusSoon()
             }
@@ -878,7 +877,7 @@ final class AppState: ObservableObject {
             try task.run()
         } catch {
             isPerformingServiceAction = false
-            lastError = "无法启动后台服务操作：\(error.localizedDescription)"
+            lastError = "这一步没能开始：\(error.localizedDescription)"
         }
     }
 

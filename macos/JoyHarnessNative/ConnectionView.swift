@@ -8,7 +8,7 @@ struct ConnectionView: View {
             VStack(alignment: .leading, spacing: 20) {
                 PageTitle(
                     "连接",
-                    subtitle: "Joy-Con 连上之后，按键就会发出你配置的快捷键。",
+                    subtitle: "手柄连上了没有，常用按键现在发出什么。",
                     // No status badge here. The banner below states the three
                     // states this page cannot act on, the 按键响应 card states
                     // the other two, and the sidebar states all five all the
@@ -40,12 +40,12 @@ struct ConnectionView: View {
                     JoySectionHeader("设备")
                     HStack(spacing: 14) {
                         controllerCard(
-                            name: "左 Joy-Con",
+                            name: "左手柄",
                             imageName: ControllerSide.left.imageName,
                             status: state.leftController
                         )
                         controllerCard(
-                            name: "右 Joy-Con",
+                            name: "右手柄",
                             imageName: ControllerSide.right.imageName,
                             status: state.rightController
                         )
@@ -63,7 +63,7 @@ struct ConnectionView: View {
 
                     if previewMappings.isEmpty {
                         JoyCard(padding: 14) {
-                            Text("还没有可显示的按键。")
+                            Text("还没有配置任何按键。")
                                 .font(.system(size: 12))
                                 .foregroundStyle(JoyTheme.detail)
                         }
@@ -136,21 +136,21 @@ struct ConnectionView: View {
     /// the menu-bar icon use.
     private var responseTitle: String {
         switch state.availability {
-        case .ready: return "正在响应"
+        case .ready: return "可以用了"
         case .paused: return "已暂停"
         case .permissionRequired: return "等待授权"
         case .serviceStopped: return "没有在运行"
-        case .disconnected: return "等待手柄"
+        case .disconnected: return "还没连上手柄"
         }
     }
 
     private var responseDetail: String {
         switch state.availability {
-        case .ready: return "按键正在发出快捷键。"
-        case .paused: return "手柄仍然连着，但按键不发出快捷键。"
-        case .permissionRequired: return "完成辅助功能授权前，按键不会发出快捷键。"
-        case .serviceStopped: return "服务没有运行，按键不会发出快捷键。"
-        case .disconnected: return "连接任意一只 Joy-Con 后，按键就会发出快捷键。"
+        case .ready: return "现在按手柄，Mac 就有反应。"
+        case .paused: return "手柄还连着，只是暂时不动作。"
+        case .permissionRequired: return "先去「关于」里授权。"
+        case .serviceStopped: return "JoyHarness 没在运行。"
+        case .disconnected: return "连上任意一只手柄就能用。"
         }
     }
 
@@ -296,7 +296,7 @@ struct ConnectionView: View {
                     if status.connected {
                         BatteryLevelView(level: status.batteryLevel, charging: status.charging)
                     } else if status.asleep {
-                        Text("按任意键唤醒")
+                        Text("按一下手柄就醒")
                             .font(.system(size: 12))
                             .foregroundStyle(JoyTheme.detail)
                     }

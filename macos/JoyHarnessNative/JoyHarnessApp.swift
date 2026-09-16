@@ -99,6 +99,39 @@ final class JoyHarnessAppDelegate: NSObject, NSApplicationDelegate, NSWindowDele
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "退出 JoyHarness", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appMenuItem.submenu = appMenu
+
+        // ⌘C / ⌘V / ⌘W are not system shortcuts on macOS: each is the key
+        // equivalent of a menu item in 编辑 or 窗口, dispatched down the
+        // responder chain. An app that builds its own main menu and leaves
+        // those menus out has no copy, no paste and no close -- which is why
+        // ⌘V could not be pasted into the 按键 page's manual shortcut field,
+        // of all places. Every item below leaves its target nil so the chain
+        // resolves it against whatever is first responder.
+        let editMenuItem = NSMenuItem()
+        mainMenu.addItem(editMenuItem)
+        let editMenu = NSMenu(title: "编辑")
+        editMenu.addItem(withTitle: "撤销", action: Selector(("undo:")), keyEquivalent: "z")
+        let redo = editMenu.addItem(withTitle: "重做", action: Selector(("redo:")), keyEquivalent: "z")
+        redo.keyEquivalentModifierMask = [.command, .shift]
+        editMenu.addItem(.separator())
+        editMenu.addItem(withTitle: "剪切", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: "拷贝", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: "粘贴", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: "删除", action: #selector(NSText.delete(_:)), keyEquivalent: "")
+        editMenu.addItem(.separator())
+        editMenu.addItem(withTitle: "全选", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        editMenuItem.submenu = editMenu
+
+        let windowMenuItem = NSMenuItem()
+        mainMenu.addItem(windowMenuItem)
+        let windowMenu = NSMenu(title: "窗口")
+        windowMenu.addItem(withTitle: "最小化", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        windowMenu.addItem(withTitle: "缩放", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
+        windowMenu.addItem(.separator())
+        windowMenu.addItem(withTitle: "关闭", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        windowMenuItem.submenu = windowMenu
+        NSApp.windowsMenu = windowMenu
+
         NSApp.mainMenu = mainMenu
     }
 
@@ -114,7 +147,7 @@ final class JoyHarnessAppDelegate: NSObject, NSApplicationDelegate, NSWindowDele
             try gateway.start()
             inputGateway = gateway
         } catch {
-            AppState.shared.lastError = "无法启动原生按键输出服务：\(error.localizedDescription)"
+            AppState.shared.lastError = "JoyHarness 没能启动发送按键的部分：\(error.localizedDescription)"
         }
     }
 
@@ -130,8 +163,24 @@ final class JoyHarnessAppDelegate: NSObject, NSApplicationDelegate, NSWindowDele
     }
 
     private func showMainWindow() {
+        // Two beats, not one. Becoming a regular app is what installs the menu
+        // bar, and activating in the same runloop turn raced it: the window
+        // looked focused while the menu bar still belonged to the app you came
+        // from, so ⌘Q could quit that one instead. Policy first, activation on
+        // the next turn -- and only when the policy actually changed, so
+        // reopening an already-regular app stays immediate.
+        let wasAccessory = NSApp.activationPolicy() != .regular
         NSApp.setActivationPolicy(.regular)
-        NSRunningApplication.current.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
+
+        if wasAccessory {
+            DispatchQueue.main.async { [weak self] in self?.bringMainWindowForward() }
+        } else {
+            bringMainWindowForward()
+        }
+    }
+
+    private func bringMainWindowForward() {
+        NSApp.activate(ignoringOtherApps: true)
         mainWindow?.makeKeyAndOrderFront(nil)
         mainWindow?.orderFrontRegardless()
     }
