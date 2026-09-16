@@ -36,15 +36,14 @@ struct AboutView: View {
                                 .font(.system(size: 15, weight: .semibold))
                             Text("将 Joy-Con 按键映射为 macOS 快捷键，并按你的工作方式自由配置。")
                                 .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(JoyTheme.detail)
                                 .lineSpacing(3)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 }
 
-                Text("偏好")
-                    .font(.system(size: 15, weight: .semibold))
+                JoySectionHeader("偏好")
 
                 JoyCard {
                     VStack(spacing: 0) {
@@ -99,8 +98,7 @@ struct AboutView: View {
                     .animation(JoyMotion.stateChange, value: state.appearance)
                 }
 
-                Text("系统")
-                    .font(.system(size: 15, weight: .semibold))
+                JoySectionHeader("系统")
 
                 JoyCard {
                     VStack(spacing: 0) {
@@ -177,8 +175,7 @@ struct AboutView: View {
                     .animation(JoyMotion.stateChange, value: state.serviceRunning)
                 }
 
-                Text("支持")
-                    .font(.system(size: 15, weight: .semibold))
+                JoySectionHeader("支持")
 
                 JoyCard {
                     VStack(spacing: 0) {
@@ -209,8 +206,8 @@ struct AboutView: View {
 
                 if state.buildFlavor == "preview" {
                     Text("Preview 的外观和登录项只作用于 Preview 身份，不会替换正式 App 或改变正式 App 的设置。")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 12))
+                        .foregroundStyle(JoyTheme.detail)
                         .padding(.horizontal, 4)
                 }
             }

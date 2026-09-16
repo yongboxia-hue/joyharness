@@ -21,6 +21,20 @@ enum JoyTheme {
             ? NSColor(srgbRed: 0.33, green: 0.33, blue: 0.35, alpha: 1)
             : NSColor(srgbRed: 0.16, green: 0.16, blue: 0.17, alpha: 1)
     })
+
+    /// The second line of a row -- battery, an explanation under a title, the
+    /// meaning of a shortcut. `.secondary` is about 50% opacity, which at the
+    /// sizes this app uses reads as visible but not quite legible; this is the
+    /// same role one step stronger.
+    static let detail = Color.primary.opacity(0.64)
+
+    /// The surface a card is drawn on. Deliberately opaque: `.regularMaterial`
+    /// let the window background through, and every label on a translucent
+    /// card lost contrast against it -- the reason the whole app read as
+    /// slightly out of focus.
+    static let cardSurface = Color(nsColor: .controlBackgroundColor)
+    static let cardBorder = Color.primary.opacity(0.1)
+
     static let sidebarWidth: CGFloat = 232
 }
 
@@ -51,17 +65,19 @@ enum JoyMotion {
 }
 
 struct JoyCard<Content: View>: View {
+    var padding: CGFloat = 18
+    var cornerRadius: CGFloat = 14
     @ViewBuilder var content: Content
 
     var body: some View {
         content
-            .padding(18)
+            .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(JoyTheme.cardSurface)
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(Color.primary.opacity(0.07), lineWidth: 1)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(JoyTheme.cardBorder, lineWidth: 1)
             }
     }
 }
@@ -166,7 +182,7 @@ struct PageTitle: View {
                     .font(.system(size: 28, weight: .bold, design: .rounded))
                 Text(subtitle)
                     .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(JoyTheme.detail)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 20)
@@ -258,7 +274,7 @@ struct InfoRow: View {
                 .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).font(.system(size: 13, weight: .semibold))
-                Text(detail).font(.system(size: 11)).foregroundStyle(.secondary)
+                Text(detail).font(.system(size: 12)).foregroundStyle(JoyTheme.detail)
             }
             Spacer(minLength: 12)
             trailing
@@ -266,46 +282,9 @@ struct InfoRow: View {
     }
 }
 
-/// One inset group of rows, the way System Settings draws a list: a single
-/// opaque surface with hairlines between its rows.
-///
-/// This exists because the 连接 page used to stack a `JoyCard` inside a
-/// `JoyCard` -- two nearly identical translucent greys on top of each other,
-/// which is what made the page read as muddy rather than layered. A group
-/// draws one surface no matter how many rows it holds.
-struct JoyGroup<Content: View>: View {
-    @ViewBuilder var content: Content
-
-    var body: some View {
-        VStack(spacing: 0) {
-            content
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.primary.opacity(0.07), lineWidth: 1)
-        }
-    }
-}
-
-/// The hairline between two rows of a `JoyGroup`. Inset to start where the
-/// row's text starts, so the divider reads as separating entries rather than
-/// cutting the group in half.
-struct JoyRowDivider: View {
-    var inset: CGFloat = 14
-
-    var body: some View {
-        Divider()
-            .opacity(0.6)
-            .padding(.leading, inset)
-    }
-}
-
-/// The label above a `JoyGroup`, with an optional action on the right. The
-/// action is a link rather than a bordered button: a section header should
-/// not compete with the page's real buttons for attention.
+/// The label above a section, with an optional action on the right. The action
+/// is a link rather than a bordered button: a section header should not compete
+/// with the page's real buttons for attention.
 struct JoySectionHeader: View {
     let title: String
     var trailing: AnyView?
@@ -318,8 +297,7 @@ struct JoySectionHeader: View {
     var body: some View {
         HStack(spacing: 12) {
             Text(title)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 13, weight: .semibold))
             Spacer(minLength: 12)
             trailing
         }

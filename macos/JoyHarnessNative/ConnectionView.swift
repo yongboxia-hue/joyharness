@@ -19,25 +19,20 @@ struct ConnectionView: View {
                     )
                 )
 
-                // Only the two states that need an action the page does not
-                // otherwise offer: authorization happens on another page, and a
-                // stopped service has to be restarted. "Not connected" and
-                // "paused" are said better by the sections below -- each of
-                // which now reads its own state off `availability` -- so a
-                // banner repeating them is the same sentence twice on a screen.
+                // The states that need an action this page does not otherwise
+                // offer. Being paused is not one of them: the response row
+                // below both says it and undoes it, so a banner there would be
+                // the same sentence twice on one screen.
                 if showsRecoveryCard {
                     recoveryCard
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
 
-                // Every section below is one group of rows on one surface. The
-                // two controllers used to be two floating cards side by side
-                // and the mappings a grid of cards inside another card; both
-                // put a second grey on top of a nearly identical first.
-                // Two cards side by side rather than two full-width rows: a
-                // row that wide is mostly empty, and the controller is the one
-                // thing on this page worth showing at a size you can see.
-                VStack(alignment: .leading, spacing: 8) {
+                // Cards, not full-width rows: a row this wide spends nine
+                // hundred points saying 未连接. Nothing on this page is a
+                // card inside another card any more, which is what used to
+                // put two nearly identical greys on top of each other.
+                VStack(alignment: .leading, spacing: 10) {
                     JoySectionHeader("设备")
                     HStack(spacing: 14) {
                         controllerCard(
@@ -53,7 +48,7 @@ struct ConnectionView: View {
                     }
                 }
 
-                section(
+                VStack(alignment: .leading, spacing: 10) {
                     JoySectionHeader(
                         "常用按键",
                         trailing: AnyView(
@@ -61,33 +56,24 @@ struct ConnectionView: View {
                                 .buttonStyle(JoyLinkButtonStyle())
                         )
                     )
-                ) {
+
                     if previewMappings.isEmpty {
-                        Text("还没有可显示的按键。")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 12)
+                        JoyCard(padding: 14) {
+                            Text("还没有可显示的按键。")
+                                .font(.system(size: 12))
+                                .foregroundStyle(JoyTheme.detail)
+                        }
                     } else {
-                        // Two columns of single-line rows. Six entries fill
-                        // three rows exactly, so no cell is ever left empty --
-                        // which is what made the old three-column grid of five
-                        // look unfinished.
-                        ForEach(Array(mappingPairs.enumerated()), id: \.offset) { index, pair in
-                            if index > 0 {
-                                JoyRowDivider(inset: 0)
+                        // Six previews in three columns: two full rows, no
+                        // empty cell. The count is what left a hole in the
+                        // old three-column grid, not the three columns.
+                        LazyVGrid(
+                            columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3),
+                            spacing: 12
+                        ) {
+                            ForEach(previewMappings) { item in
+                                mappingCard(item)
                             }
-                            HStack(spacing: 0) {
-                                mappingCell(pair.leading)
-                                Divider().opacity(0.6)
-                                if let trailing = pair.trailing {
-                                    mappingCell(trailing)
-                                } else {
-                                    Color.clear.frame(maxWidth: .infinity)
-                                }
-                            }
-                            .frame(height: 46)
                         }
                     }
                 }
@@ -97,26 +83,27 @@ struct ConnectionView: View {
                 // only control it carries is disabled anyway. Exactly one
                 // place on the page explains why a press does nothing.
                 if !showsRecoveryCard {
-                    section(JoySectionHeader("按键响应")) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        JoySectionHeader("按键响应")
                         // Keyed off availability, not just `paused`: without the
                         // Accessibility grant no key can be sent at all, and this
                         // row still read 正在响应 · 按键正在发出快捷键 on the same
                         // screen as the red 还需要完成系统授权 banner.
-                        InfoRow(
-                            symbol: responseSymbol,
-                            title: responseTitle,
-                            detail: responseDetail,
-                            tint: responseTint,
-                            trailing: AnyView(
-                                Button(state.isChangingPauseState ? "处理中…" : (state.paused ? "继续响应" : "暂停响应")) {
-                                    state.togglePaused()
-                                }
-                                .buttonStyle(SecondaryButtonStyle())
-                                .disabled(!state.serviceRunning || state.isChangingPauseState)
+                        JoyCard(padding: 14) {
+                            InfoRow(
+                                symbol: responseSymbol,
+                                title: responseTitle,
+                                detail: responseDetail,
+                                tint: responseTint,
+                                trailing: AnyView(
+                                    Button(state.isChangingPauseState ? "处理中…" : (state.paused ? "继续响应" : "暂停响应")) {
+                                        state.togglePaused()
+                                    }
+                                    .buttonStyle(SecondaryButtonStyle())
+                                    .disabled(!state.serviceRunning || state.isChangingPauseState)
+                                )
                             )
-                        )
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 12)
+                        }
                     }
                     .transition(.opacity)
                 }
@@ -127,22 +114,16 @@ struct ConnectionView: View {
         }
     }
 
-    /// The two states the page cannot fix from the sections below: the grant
-    /// lives on another page, and a stopped service has to be restarted.
+    /// The states the page cannot fix from the sections below: the grant lives
+    /// on another page, a stopped service has to be restarted, and with no
+    /// controller connected the device cards can state the fact but not offer
+    /// the way out. `disconnected` means neither controller is connected --
+    /// one is enough for this product, so a single card reading 未连接 next to
+    /// a connected one raises no banner.
     private var showsRecoveryCard: Bool {
-        state.availability == .permissionRequired || state.availability == .serviceStopped
-    }
-
-    /// A header plus the group it labels, kept together so every section on the
-    /// page gets the same gap between the two.
-    private func section<Content: View>(
-        _ header: JoySectionHeader,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            header
-            JoyGroup { content() }
-        }
+        state.availability == .permissionRequired
+            || state.availability == .serviceStopped
+            || state.availability == .disconnected
     }
 
     /// What the 按键响应 row says. `paused` is only one of the reasons a press
@@ -191,7 +172,7 @@ struct ConnectionView: View {
                     .font(.system(size: 17, weight: .bold))
                 Text(availability.detail)
                     .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(JoyTheme.detail)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 20)
@@ -228,64 +209,64 @@ struct ConnectionView: View {
         }
     }
 
-    /// The previews laid out two per row.
-    private var mappingPairs: [(leading: MappingPreviewItem, trailing: MappingPreviewItem?)] {
-        let items = previewMappings
-        return stride(from: 0, to: items.count, by: 2).map { index in
-            (items[index], index + 1 < items.count ? items[index + 1] : nil)
-        }
-    }
-
     /// One mapping, on one line: the key cap, what it sends, what that means.
-    /// The shortcut column is a fixed width so the meanings line up down the
-    /// column. The cap is drawn the way the 按键 page draws it, so a button has
-    /// one appearance in this app rather than one per page.
-    private func mappingCell(_ item: MappingPreviewItem) -> some View {
-        HStack(spacing: 12) {
-            Text(item.key)
-                .font(.system(size: 11, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-                .frame(width: 32, height: 26)
-                .background(JoyTheme.keyCapOnRow)
-                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-            Text(item.shortcut)
-                .font(.system(size: 13, weight: .semibold))
-                .lineLimit(1)
-                .frame(width: 88, alignment: .leading)
-            Text(item.semantic)
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-            Spacer(minLength: 8)
+    /// The cap is drawn the way the 按键 page draws it, so a button has one
+    /// appearance in this app rather than one per page.
+    private func mappingCard(_ item: MappingPreviewItem) -> some View {
+        JoyCard(padding: 12, cornerRadius: 10) {
+            HStack(spacing: 11) {
+                Text(item.key)
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .frame(width: 32, height: 26)
+                    .background(JoyTheme.keyCapOnRow)
+                    .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                // A floor, not a fixed width: short shortcuts line their
+                // meanings up down the column, long ones still get the room.
+                Text(item.shortcut)
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+                    .frame(minWidth: 56, alignment: .leading)
+                Text(item.semantic)
+                    .font(.system(size: 12))
+                    .foregroundStyle(JoyTheme.detail)
+                    .lineLimit(1)
+                    .layoutPriority(-1)
+                Spacer(minLength: 4)
+            }
         }
-        .padding(.horizontal, 14)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// The controller, its name, and one line saying only what the pill does
+    /// not: the battery when it is connected, how to get it back when it is
+    /// not. A 未连接 line under a 未连接 pill is the same word twice.
     private func controllerCard(name: String, imageName: String, status: ControllerStatus) -> some View {
-        JoyGroup {
-            HStack(spacing: 18) {
+        JoyCard {
+            HStack(spacing: 14) {
                 Group {
                     if let image = state.imageResource(named: imageName) {
                         Image(nsImage: image)
                             .resizable()
                             .scaledToFit()
-                            .opacity(status.connected ? 1 : 0.4)
+                            .opacity(status.connected ? 1 : 0.45)
                     }
                 }
-                .frame(width: 58, height: 96)
+                .frame(width: 42, height: 70)
 
                 VStack(alignment: .leading, spacing: 7) {
-                    Text(name)
-                        .font(.system(size: 14, weight: .semibold))
-                    // Only what the pill does not already say. A second
-                    // 未连接 under a 未连接 pill is the same word twice.
+                    HStack(spacing: 7) {
+                        Circle()
+                            .fill(status.connected ? JoyTheme.green : Color.secondary.opacity(0.6))
+                            .frame(width: 8, height: 8)
+                        Text(name)
+                            .font(.system(size: 13, weight: .semibold))
+                    }
                     if status.connected {
                         BatteryLevelView(level: status.batteryLevel, charging: status.charging)
-                    } else if status.asleep {
-                        Text("按任意键唤醒")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
+                    } else {
+                        Text(status.asleep ? "按任意键唤醒" : "长按侧边同步键配对")
+                            .font(.system(size: 12))
+                            .foregroundStyle(JoyTheme.detail)
                     }
                 }
 
@@ -296,7 +277,6 @@ struct ConnectionView: View {
                          : (status.asleep ? JoyTheme.blue : .secondary)
                 )
             }
-            .padding(18)
         }
     }
 
@@ -359,12 +339,12 @@ struct BatteryLevelView: View {
                 ForEach(1...4, id: \.self) { index in
                     RoundedRectangle(cornerRadius: 1.5)
                         .fill(fillColor(for: index))
-                        .frame(width: 7, height: 11)
+                        .frame(width: 8, height: 12)
                 }
             }
             Text(detail)
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 12))
+                .foregroundStyle(JoyTheme.detail)
         }
         .accessibilityLabel(detail)
     }

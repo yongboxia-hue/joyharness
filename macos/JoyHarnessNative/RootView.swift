@@ -51,8 +51,8 @@ struct RootView: View {
                     Text("JoyHarness")
                         .font(.system(size: 14, weight: .bold))
                     Text("Joy-Con 快捷键")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 11))
+                        .foregroundStyle(JoyTheme.detail)
                 }
             }
             .padding(.horizontal, 17)
@@ -98,10 +98,10 @@ struct RootView: View {
                     .frame(width: 8, height: 8)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(state.availability.badge)
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: 12, weight: .semibold))
                     Text(state.controllerSummary)
-                        .font(.system(size: 9))
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 11))
+                        .foregroundStyle(JoyTheme.detail)
                         .lineLimit(1)
                 }
             }
