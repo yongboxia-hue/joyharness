@@ -175,7 +175,7 @@ struct ConnectionView: View {
             VStack(alignment: .leading, spacing: 5) {
                 Text(availability.title)
                     .font(.system(size: 17, weight: .bold))
-                Text(availability.detail)
+                Text(bannerDetail(for: availability))
                     .font(.system(size: 12))
                     .foregroundStyle(JoyTheme.detail)
                     .fixedSize(horizontal: false, vertical: true)
@@ -196,6 +196,16 @@ struct ConnectionView: View {
     /// a blue button on a red surface is two accent colours competing inside
     /// one box, and a red one would read as destructive -- which 重新启动 is
     /// not.
+    /// The banner is the only place the pairing gesture is written down now
+    /// that the cards have stopped carrying it, so the disconnected banner
+    /// says it. Not in `AvailabilityState.detail`: that string is also a
+    /// menu-bar item, and a second sentence would stretch that menu across
+    /// the screen.
+    private func bannerDetail(for availability: AvailabilityState) -> String {
+        guard availability == .disconnected else { return availability.detail }
+        return availability.detail + "第一次配对要长按手柄侧边的同步键，直到指示灯来回跑动。"
+    }
+
     @ViewBuilder
     private func recoveryAction(for availability: AvailabilityState) -> some View {
         switch availability {
@@ -246,9 +256,13 @@ struct ConnectionView: View {
         }
     }
 
-    /// The controller, its name, and one line saying only what the pill does
-    /// not: the battery when it is connected, how to get it back when it is
-    /// not. A 未连接 line under a 未连接 pill is the same word twice.
+    /// The controller, its name, and a second line only when there is one
+    /// worth having: the battery, or the one gesture that wakes a sleeping
+    /// controller. Not 未连接 -- the pill says that -- and not the pairing
+    /// instruction either. Most people use one Joy-Con, so on the other card
+    /// that instruction would sit there forever as a chore they never meant
+    /// to do; it belongs in the banner, which is the only place that also
+    /// offers the Bluetooth settings to finish it in.
     /// + and - sit on the maths axis, which is roughly x-height, so at the
     /// size that suits ZR they look a size smaller than the letters beside
     /// them. Symbols get the larger size, letters the middle one, and the
@@ -281,8 +295,8 @@ struct ConnectionView: View {
                     }
                     if status.connected {
                         BatteryLevelView(level: status.batteryLevel, charging: status.charging)
-                    } else {
-                        Text(status.asleep ? "按任意键唤醒" : "长按侧边同步键配对")
+                    } else if status.asleep {
+                        Text("按任意键唤醒")
                             .font(.system(size: 12))
                             .foregroundStyle(JoyTheme.detail)
                     }
