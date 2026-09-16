@@ -253,27 +253,69 @@ final class RuntimeManager {
             throw RuntimeManagerError.missingDefaultConfiguration
         }
 
+        // The defaults this build ships, kept beside the user's file so a later
+        // upgrade can tell a mapping the user chose from one they merely never
+        // touched. Without it the two are indistinguishable and the only safe
+        // move is to change nothing.
+        let shipped = configDirectory.appendingPathComponent("shipped-default.json")
+
         if !manager.fileExists(atPath: destination.path) {
             try manager.copyItem(at: source, to: destination)
+            try? manager.removeItem(at: shipped)
+            try? manager.copyItem(at: source, to: shipped)
             return destination
         }
 
-        // An installed config is never touched again *except* when this build
-        // ships a newer config_version. Without that check the very first
-        // install's file lives forever: every later fix to the shipped
-        // mappings reached the app bundle but never the file the runtime and
-        // the mapping editor actually read, so the app kept running mappings
-        // that no longer existed anywhere in the source tree.
+        // An installed config is never touched except when this build ships a
+        // newer config_version. Without that check the very first install's
+        // file lives forever: every later fix to the shipped mappings reached
+        // the app bundle but never the file the runtime and the mapping editor
+        // actually read, so the app kept running mappings that no longer
+        // existed anywhere in the source tree.
+        //
+        // What it must not do is take the user's own mappings with it. Until
+        // 0.2.0 an upgrade replaced the whole file, so anyone who had remapped
+        // a button lost it to a timestamped backup they had no reason to look
+        // for. An upgrade now merges: a value the user still shares with the
+        // defaults they were given moves to the new default, and anything they
+        // changed stays exactly as it is.
         if configVersion(at: source) > configVersion(at: destination) {
             let stamp = ISO8601DateFormatter().string(from: Date())
                 .replacingOccurrences(of: ":", with: "-")
             let backup = configDirectory.appendingPathComponent("user-\(stamp).json.backup")
             try? manager.removeItem(at: backup)
-            try manager.moveItem(at: destination, to: backup)
-            try manager.copyItem(at: source, to: destination)
+            try? manager.copyItem(at: destination, to: backup)
+
+            let installed = (try? jsonObject(at: destination)) ?? [:]
+            let incoming = try jsonObject(at: source)
+            // No stored baseline means this install predates the merge, and
+            // every difference could be the user's. Treating the new defaults
+            // as the baseline keeps all of them: nothing is overwritten unless
+            // it can be shown to be untouched.
+            let baseline = (try? jsonObject(at: shipped)) ?? incoming
+            let merged = ConfigMerge.merge(installed: installed, incoming: incoming, baseline: baseline)
+            let data = try JSONSerialization.data(
+                withJSONObject: merged, options: [.prettyPrinted, .sortedKeys]
+            )
+            try (data + Data("\n".utf8)).write(to: destination, options: .atomic)
+            try? manager.removeItem(at: shipped)
+            try? manager.copyItem(at: source, to: shipped)
+        } else if !manager.fileExists(atPath: shipped.path) {
+            // First run of a build that keeps a baseline, on a config that is
+            // already current: record what this build ships so the *next*
+            // upgrade has something to compare against.
+            try? manager.copyItem(at: source, to: shipped)
         }
 
         return destination
+    }
+
+    private func jsonObject(at url: URL) throws -> [String: Any] {
+        let data = try Data(contentsOf: url)
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw RuntimeManagerError.missingDefaultConfiguration
+        }
+        return root
     }
 
     /// `config_version` from a config file, or 0 when absent -- which is what

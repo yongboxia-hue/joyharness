@@ -27,7 +27,7 @@ enum ActionCatalog {
         "disabled": "未设置",
         "app_switch_mode": "切换应用",
         "window_switch": "切换窗口",
-        "focus_input": "聚焦",
+        "focus_input": "聚焦输入框",
         "screenshot": "截图",
         "window_picker": "选择窗口",
         "macro": "执行宏",
@@ -78,8 +78,7 @@ enum ActionCatalog {
         "⌫": "删除",
         "Esc": "取消当前操作",
         "⎋": "取消当前操作",
-        "⌘Space": "快捷搜索",
-        "Space": "确认 / 预览",
+        "⌘Space": "聚焦搜索",
         "⌘L": "定位",
         "⌘K": "清除",
         "⌘Tab": "切换应用"
@@ -92,7 +91,7 @@ enum ActionCatalog {
         "app_switch_mode": "停在切换器里挑",
         "window_switch": "在当前应用的窗口间挑",
         "window_picker": "在当前应用的窗口间挑",
-        "focus_input": "把光标放进输入框",
+        "focus_input": "光标进入当前窗口的输入框",
         "screenshot": "截取当前屏幕",
         "macro": "执行一串预设操作",
         "exec": "运行一条命令"

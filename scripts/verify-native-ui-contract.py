@@ -371,6 +371,15 @@ require(app_model, "processOnboardingInputEvents", "runtime input event monitori
 require(mapping_editor, "ShortcutRecorderControl", "keyboard shortcut recording control")
 require(mapping_editor, "Command+V", "manual shortcut entry")
 require(mapping_config, 'gesture: nil', "single-action buttons carry no gesture label")
+# An upgrade must not take the user's own mappings with it. Before 0.2.0 a
+# newer config_version replaced the whole file, and a remapped button went to a
+# backup nobody had a reason to look for.
+require(runtime_manager, "ConfigMerge.merge(", "an upgrade merges the shipped defaults")
+require(runtime_manager, "shipped-default.json",
+        "the defaults this build ships are recorded, so the next upgrade can tell "
+        "a chosen mapping from an untouched one")
+forbid(runtime_manager, "try manager.moveItem(at: destination, to: backup)",
+       "an upgrade moves the user's config aside again instead of merging into it")
 require(runtime_manager, 'environment["JOYHARNESS_INPUT_BACKEND"] = "native"', "native-only production input backend")
 require(runtime_manager, '"--native-client"', "headless bundled runtime mode")
 require(status_bar, "MenuBarIconRenderer.image", "custom menu-bar icon")

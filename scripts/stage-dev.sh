@@ -55,6 +55,7 @@ run "UI contract"            "$PYTHON" scripts/verify-native-ui-contract.py
 run "Config and runtime IPC" env PYTHONPATH=. "$PYTHON" tests/test_config_and_runtime_ipc.py
 run "Native input client"    env PYTHONPATH=. "$PYTHON" tests/test_native_input_client.py
 run "Process guard and HID"  env PYTHONPATH=. "$PYTHON" tests/test_process_guard_and_hid_access.py
+run "Config upgrade merge"   bash scripts/test-config-upgrade-merge.sh
 run "Native ConfigStore"     bash scripts/test-native-config-store.sh
 run "Native input gateway"   bash scripts/test-native-input-gateway.sh
 run "Menu-bar icon"          bash scripts/test-menubar-icon.sh
