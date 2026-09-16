@@ -1,5 +1,5 @@
 {
-  "config_version": 7,
+  "config_version": 8,
   "description": "JoyHarness 默认按键映射：左右手柄按位置互为镜像",
   "deadzone": 0.2,
   "poll_interval": 0.01,
