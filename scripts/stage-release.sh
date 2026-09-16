@@ -46,11 +46,35 @@ bash scripts/prepare-release.sh "$version" --push
 
 printf '\n\033[1mWaiting for the release workflow\033[0m\n'
 if command -v gh >/dev/null 2>&1; then
-  gh run watch "$(gh run list --workflow release.yml --limit 1 --json databaseId -q '.[0].databaseId')" \
-    --exit-status || {
-      echo "The release workflow did not finish cleanly; nothing has been mirrored." >&2
-      exit 1
-    }
+  # Wait for the run *for this tag*. Taking the newest run in the list watched
+  # whichever release happened to be most recent -- which, in the seconds
+  # before GitHub registers the new one, is the previous release, already
+  # finished and green. It then mirrored a release that did not exist yet.
+  run=""
+  for _ in $(seq 1 30); do
+    run="$(gh run list --workflow release.yml --limit 10 \
+            --json databaseId,headBranch \
+            -q "[.[] | select(.headBranch == \"v$version\")][0].databaseId")"
+    [ -n "$run" ] && [ "$run" != "null" ] && break
+    sleep 5
+  done
+  if [ -z "$run" ] || [ "$run" = "null" ]; then
+    echo "No release workflow appeared for v$version; nothing has been mirrored." >&2
+    exit 1
+  fi
+  echo "Watching run $run"
+  gh run watch "$run" --exit-status || {
+    echo "The release workflow did not finish cleanly; nothing has been mirrored." >&2
+    exit 1
+  }
+
+  # The workflow creates the release near its end, and the feed is committed
+  # after that. Mirroring reads both, so wait for them rather than racing.
+  for _ in $(seq 1 30); do
+    gh release view "v$version" >/dev/null 2>&1 && break
+    sleep 5
+  done
+  git fetch origin main --quiet
 fi
 
 printf '\n\033[1mMirroring to the download bucket\033[0m\n'
