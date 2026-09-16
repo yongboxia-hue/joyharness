@@ -284,6 +284,13 @@ struct MappingEditorSheet: View {
                 }
                 .buttonStyle(PrimaryButtonStyle())
                 .disabled(state.isSavingMapping)
+                // How verify-native-hit-targets knows the editor opened. It
+                // looked for an identifier on the sheet itself, which nothing
+                // carried and which SwiftUI does not surface here anyway --
+                // the sheet's own container is not in the accessibility tree,
+                // only the controls inside it. 保存 is the one control that is
+                // always there, whatever the button is configured to do.
+                .accessibilityIdentifier("mapping-editor-save")
             }
         }
         .padding(22)

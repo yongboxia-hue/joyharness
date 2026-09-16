@@ -21,4 +21,11 @@ clang \
   "$ROOT_DIR/scripts/verify-native-hit-targets.c" \
   -o "$WORK_DIR/verify-native-hit-targets"
 
+# The checker synthesises real clicks, and a click on a background app's window
+# is spent activating that app instead of reaching what it landed on -- so the
+# card-opens-the-editor assertion passed or failed depending on which window
+# happened to be in front. Bring the app forward first and let it settle.
+open -a "$APP_PATH"
+sleep 1
+
 "$WORK_DIR/verify-native-hit-targets" "$PID"
