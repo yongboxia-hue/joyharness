@@ -92,8 +92,17 @@ resolve_python() {
 
 "$(resolve_python)" scripts/verify-native-ui-contract.py
 
+# The release note is usually still uncommitted at this point -- writing it is
+# the first step of a release and making that its own commit was busywork. But
+# now that the version bump is a separate step, everything can already be
+# committed, and refusing to tag a tree that is simply ready is not a check,
+# it is an obstacle.
 git add CHANGELOG.md
-git commit -m "Release $version"
+if git diff --cached --quiet; then
+  echo "Nothing left to commit; tagging the current commit."
+else
+  git commit -m "Release $version"
+fi
 git tag "v$version"
 
 if [ "$push" = "--push" ]; then
