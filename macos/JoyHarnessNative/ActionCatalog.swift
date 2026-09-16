@@ -72,12 +72,12 @@ enum ActionCatalog {
         "fn": "语音输入",
         "⌘V": "粘贴",
         "⌥A": "连续听写",
-        "⌥": "辅助修饰键",
+        "⌥": "修饰键",
         "↩": "回车",
         "⇧↩": "换行",
         "⌫": "删除",
-        "Esc": "取消当前操作",
-        "⎋": "取消当前操作",
+        "Esc": "取消",
+        "⎋": "取消",
         "⌘Space": "聚焦搜索",
         "⌘L": "定位",
         "⌘K": "清除",
@@ -85,15 +85,16 @@ enum ActionCatalog {
     ]
 
     private static let actionMeanings: [String: String] = [
-        // A meaning explains, it does not restate the name: 切换应用 /
-        // 在应用之间切换 was the same sentence twice, in a column built to
-        // hold two different things.
-        "app_switch_mode": "停在切换器里挑",
-        "window_switch": "在当前应用的窗口间挑",
-        "window_picker": "在当前应用的窗口间挑",
-        "focus_input": "光标进入当前窗口的输入框",
-        "screenshot": "截取当前屏幕",
-        "macro": "执行一串预设操作",
-        "exec": "运行一条命令"
+        // A meaning explains, it does not restate the name -- 切换应用 /
+        // 在应用之间切换 was the same sentence twice -- and it says so in two
+        // to four characters, because it is printed on one line beside the
+        // name and anything longer is simply cut off.
+        "app_switch_mode": "选应用",
+        "window_switch": "选窗口",
+        "window_picker": "选窗口",
+        "focus_input": "定位光标",
+        "screenshot": "存成图片",
+        "macro": "一串操作",
+        "exec": "跑命令"
     ]
 }

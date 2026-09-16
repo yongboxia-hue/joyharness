@@ -52,7 +52,10 @@ version="$(sed -n 's/^VERSION="\${JOYHARNESS_VERSION:-\([0-9.]*\)}"/\1/p' script
 printf '\n\033[1mAcceptance build %s (%s)\033[0m\n' "$version" "$ARCHS"
 
 printf '\n\033[1mChecks that do not need a runtime\033[0m\n'
-bash scripts/stage-dev.sh
+# --full: this is the build people install, so the slow checks that stage-dev
+# skips while iterating -- the process guard's real timeouts, the synthetic
+# clicks on a live window -- run here.
+bash scripts/stage-dev.sh --full
 
 printf '\n\033[1mBuilding, signing, notarising\033[0m\n'
 JOYHARNESS_ARCHS="$ARCHS" JOYHARNESS_CODESIGN_IDENTITY="$IDENTITY" \
