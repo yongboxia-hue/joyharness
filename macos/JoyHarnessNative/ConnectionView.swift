@@ -318,10 +318,13 @@ struct ConnectionView: View {
     /// controller began mirroring the right by position: it still called
     /// left X "删除" long after ⌫ had moved to B, so the summary confidently
     /// described the wrong button.
-    /// Six, so the two columns come out even.
+    /// The order a sentence gets said in, not the order the buttons sit in:
+    /// put the cursor somewhere, talk, send it, paste what you copied, delete
+    /// what came out wrong, move to the next app. Six, so the columns come out
+    /// even. What each one *means* is still read from the mapping itself.
     private static let previewOrder: [ControllerSide: [String]] = [
-        .right: ["ZR", "Plus", "A", "B", "X", "Y"],
-        .left: ["ZL", "Minus", "A", "B", "X", "Y"],
+        .right: ["X", "ZR", "A", "Plus", "B", "Y"],
+        .left: ["X", "ZL", "A", "Minus", "B", "Y"],
     ]
 
     private var previewMappings: [MappingPreviewItem] {

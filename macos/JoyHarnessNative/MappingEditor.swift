@@ -270,9 +270,11 @@ struct MappingEditorSheet: View {
                     saveError = nil
                 }
                 .buttonStyle(SecondaryButtonStyle())
+                .accessibilityIdentifier("mapping-editor-reset")
                 Spacer()
                 Button("取消") { dismiss() }
                     .buttonStyle(SecondaryButtonStyle())
+                    .accessibilityIdentifier("mapping-editor-cancel")
                 Button(state.isSavingMapping ? "保存中…" : "保存") {
                     saveError = nil
                     state.saveMapping(draft) { failure in
@@ -602,6 +604,9 @@ private struct ShortcutRecorderControl: NSViewRepresentable {
         button.onRecord = onRecord
         button.onRecordingChanged = onRecordingChanged
         button.toolTip = "点击后按下快捷键，Esc 取消"
+        // Named so the editor's own test can click it and then send keys at
+        // it; there is no other way to prove recording still records.
+        button.setAccessibilityIdentifier("shortcut-recorder")
         return button
     }
 
