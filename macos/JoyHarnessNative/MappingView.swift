@@ -24,12 +24,10 @@ struct MappingView: View {
             if !state.permissionsSatisfied { permissionNotice }
             if let error = state.mappingConfigError { configError(error) }
 
-            GeometryReader { available in
-                ScrollView {
-                    mappingBoard(height: max(570, available.size.height - 8))
-                        .padding(.horizontal, 30)
-                        .padding(.bottom, 8)
-                }
+            ScrollView {
+                mappingBoard(height: naturalBoardHeight)
+                    .padding(.horizontal, 30)
+                    .padding(.bottom, 8)
             }
         }
         .sheet(item: $state.mappingDraft) { draft in
@@ -42,7 +40,7 @@ struct MappingView: View {
     private var permissionNotice: some View {
         HStack(spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(JoyTheme.orange)
-            Text("还没有授权，这些配置暂时不会生效。").font(.system(size: 11))
+            Text("还没有授权，这些配置暂时不会生效。").font(.system(size: 12))
             Spacer()
             Button("前往关于页面") { state.selectedPage = .about }.buttonStyle(SecondaryButtonStyle())
         }
@@ -101,6 +99,28 @@ struct MappingView: View {
             }
         }
         .frame(height: height)
+    }
+
+    /// The board is as tall as what it holds, never as tall as the window.
+    /// It used to take `max(570, window - 8)`, and since both the controller
+    /// and each column are centred inside that height, a taller window pushed
+    /// them apart and opened a band of nothing under the page title: the
+    /// page's weight sat low while its top was blank. Sized to its content,
+    /// the slack falls below the board, where a top-anchored page expects it.
+    private var naturalBoardHeight: CGFloat {
+        let points = hotspots[side] ?? [:]
+        let cards = state.mappingCards(for: side)
+        func columnHeight(_ group: [MappingCardModel]) -> CGFloat {
+            let stacked = group.map(LayoutItem.height(for:)).reduce(0, +)
+            return stacked + LayoutItem.gap * CGFloat(max(group.count - 1, 0))
+        }
+        let left = cards.filter { (points[$0.hotspotKey]?.x ?? 0.5) < 0.5 }
+        let right = cards.filter { (points[$0.hotspotKey]?.x ?? 0.5) >= 0.5 }
+        return max(
+            BoardMetrics.controllerSize.height,
+            columnHeight(left),
+            columnHeight(right)
+        ) + 28
     }
 
     private enum Column { case left, right }
@@ -274,7 +294,8 @@ struct MappingView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .padding(.horizontal, 12).frame(height: 38).background(.regularMaterial).clipShape(RoundedRectangle(cornerRadius: 11))
+            .padding(.horizontal, 12).frame(height: 36).background(JoyTheme.cardSurface).clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay { RoundedRectangle(cornerRadius: 10).stroke(JoyTheme.cardBorder, lineWidth: 1) }
             .fixedSize(horizontal: true, vertical: false)
             .position(x: 155, y: 19)
 
@@ -288,8 +309,8 @@ struct MappingView: View {
             }
 
             Text(side == .left ? "左 Joy-Con" : "右 Joy-Con")
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 11))
+                .foregroundStyle(JoyTheme.detail)
                 .position(x: 155, y: 493)
         }
     }
