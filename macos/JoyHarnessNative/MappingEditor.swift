@@ -218,34 +218,32 @@ struct MappingEditorSheet: View {
                 }
             }
 
-            if !isBuiltInDraft {
-                HStack(spacing: 0) {
+            // Two ways to add a gesture, so two of the same thing. 添加双击
+            // used to hide inside a menu of its own with one item in it,
+            // next to 添加长按 as a plain link -- two shapes for one job, and
+            // a menu called 更多 sitting a few points below another menu
+            // called 更多 that offered something else entirely.
+            if !isBuiltInDraft && (!draft.long.isSet || !draft.double.isSet) {
+                HStack(spacing: 18) {
                     if !draft.long.isSet {
-                        Button {
-                            draft.long = .pending
-                        } label: {
-                            Label("添加长按", systemImage: "plus.circle")
-                                .font(.system(size: 12))
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(JoyTheme.blue)
-                        .accessibilityIdentifier("mapping-add-long")
-                    }
-                    if !draft.long.isSet && !draft.double.isSet {
-                        Spacer().frame(width: 18)
+                        addGestureButton("添加长按") { draft.long = .pending }
+                            .accessibilityIdentifier("mapping-add-long")
                     }
                     if !draft.double.isSet {
-                        Menu {
-                            Button("添加双击") { draft.double = .pending }
-                        } label: {
-                            Text("更多").font(.system(size: 12))
-                        }
-                        .menuStyle(.borderlessButton)
-                        .fixedSize()
-                        .help("双击会让单击延迟 0.35 秒后才触发")
+                        addGestureButton("添加双击") { draft.double = .pending }
+                            .accessibilityIdentifier("mapping-add-double")
                     }
                     Spacer(minLength: 0)
                 }
+            }
+
+            // The cost of a double click, where it can be read. It was a
+            // tooltip on a menu, which is to say invisible: nothing told you
+            // that adding this slows every single press down.
+            if draft.double.isSet {
+                Text("加了双击之后，单击会延迟 0.35 秒才触发。")
+                    .font(.system(size: 11))
+                    .foregroundStyle(JoyTheme.detail)
             }
 
             // Only says the thing that cannot be guessed from looking at it.
@@ -300,6 +298,15 @@ struct MappingEditorSheet: View {
     private func binding(for gesture: MappingGesture) -> Binding<MappingActionDraft> {
         Binding(get: { draft[gesture] }, set: { draft[gesture] = $0 })
     }
+
+    private func addGestureButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: "plus.circle")
+                .font(.system(size: 12))
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(JoyTheme.blue)
+    }
 }
 
 private struct ShortcutActionEditorRow: View {
@@ -312,6 +319,7 @@ private struct ShortcutActionEditorRow: View {
     @State private var manualInput = ""
     @State private var showManualInput = false
     @State private var validationMessage: String?
+    @State private var isRecording = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -329,23 +337,15 @@ private struct ShortcutActionEditorRow: View {
                         .frame(width: 180, height: 32, alignment: .leading)
                         .help("这是内置动作，请从右侧菜单选择")
                 } else {
-                    // One control, not two. A recorder and an always-visible
-                    // text field side by side read as equal alternatives and
-                    // leave it unclear which one is meant to be used; typing
-                    // a shortcut is the fallback, so it lives behind the menu.
-                    ShortcutRecorderControl(label: action.displayLabel) { shortcut in
-                        action = .shortcut(shortcut)
-                        manualInput = ""
-                        showManualInput = false
-                        validationMessage = nil
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 30)
+                    shortcutField
                 }
 
                 HStack(spacing: 6) {
+                // One kind of thing: what this button sends. How you enter a
+                // shortcut -- record it or type it -- is a different axis, and
+                // it lives on the row now; mixing the two in here is what made
+                // manual entry hard to find and odd to come across.
                 Menu {
-                    Button("手动输入快捷键…") { showManualInput = true }
-                    Divider()
                     specialButton("fn", .shortcutKeys("fn"))
                     specialButton("Return", .shortcutKeys("enter"))
                     specialButton("Escape", .shortcutKeys("escape"))
@@ -403,30 +403,6 @@ private struct ShortcutActionEditorRow: View {
                 .frame(width: 58, alignment: .trailing)
             }
 
-            if showManualInput {
-                HStack(spacing: 8) {
-                    if showGestureTitle { Spacer().frame(width: 40) }
-                    TextField("如 ⌘V 或 Command+V", text: $manualInput)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 12))
-                        .onSubmit(applyManualInput)
-                        .accessibilityLabel("\(gesture.title)快捷键手动输入")
-                    Button("应用", action: applyManualInput)
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .disabled(manualInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    Button {
-                        showManualInput = false
-                        manualInput = ""
-                        validationMessage = nil
-                    } label: {
-                        Image(systemName: "xmark")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("收起手动输入")
-                }
-            }
-
             if let validationMessage {
                 Text(validationMessage)
                     .font(.system(size: 10))
@@ -450,6 +426,75 @@ private struct ShortcutActionEditorRow: View {
     private var isBuiltInAction: Bool {
         guard let name = action.actionName else { return false }
         return ActionCatalog.twoLevelActions.contains(name)
+    }
+
+    /// The shortcut, and both ways of putting one there, inside a single
+    /// field-shaped control.
+    ///
+    /// The shortcut is the one value this whole sheet exists to set, so it is
+    /// drawn at a size that says so rather than squeezed into a 30pt button.
+    /// Recording and typing take the same slot -- never both at once -- and
+    /// the way into the other one sits at the trailing edge behind a hairline,
+    /// so it reads as part of the field without becoming a second place to
+    /// click when you meant to start recording.
+    private var shortcutField: some View {
+        HStack(spacing: 0) {
+            Group {
+                if showManualInput {
+                    TextField("如 ⌘V 或 Command+V", text: $manualInput)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 15, weight: .medium))
+                        .onSubmit(applyManualInput)
+                        .accessibilityLabel("\(gesture.title)快捷键手动输入")
+                        .accessibilityIdentifier("manual-shortcut-field")
+                } else {
+                    ShortcutRecorderControl(
+                        label: action.displayLabel,
+                        onRecord: { shortcut in
+                            action = .shortcut(shortcut)
+                            manualInput = ""
+                            showManualInput = false
+                            validationMessage = nil
+                        },
+                        onRecordingChanged: { isRecording = $0 }
+                    )
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.leading, 14)
+
+            if showManualInput {
+                Button("应用", action: applyManualInput)
+                    .buttonStyle(JoyLinkButtonStyle())
+                    .disabled(manualInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .padding(.trailing, 12)
+            }
+
+            Divider()
+                .frame(height: 22)
+
+            // Recording is what this field is for -- you press the keys you
+            // want. Typing is for the keys you cannot press, so it is named
+            // and always in the same place, but never given equal weight.
+            Button(showManualInput ? "改用录制" : "手动输入") {
+                showManualInput.toggle()
+                manualInput = ""
+                validationMessage = nil
+            }
+            .buttonStyle(JoyLinkButtonStyle())
+            .padding(.horizontal, 13)
+            .accessibilityIdentifier("manual-shortcut-toggle")
+        }
+        .frame(height: 44)
+        .background(JoyTheme.cardSurface)
+        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .stroke(isRecording ? JoyTheme.blue : JoyTheme.cardBorder,
+                        lineWidth: isRecording ? 2 : 1)
+        }
+        .animation(JoyMotion.hover, value: isRecording)
+        .animation(JoyMotion.hover, value: showManualInput)
     }
 
     private func applyManualInput() {
@@ -476,16 +521,21 @@ private struct ShortcutActionEditorRow: View {
 private struct ShortcutRecorderControl: NSViewRepresentable {
     let label: String
     let onRecord: (ShortcutDefinition) -> Void
+    /// Reported upward so the field drawn around this button can show that it
+    /// is listening. The button has no bezel of its own any more, so without
+    /// this there would be nothing to see but the title changing.
+    var onRecordingChanged: ((Bool) -> Void)? = nil
 
     func makeNSView(context: Context) -> ShortcutRecorderButton {
         let button = ShortcutRecorderButton()
-        button.bezelStyle = .rounded
+        button.isBordered = false
         button.alignment = .left
-        button.font = .systemFont(ofSize: 13, weight: .medium)
+        button.font = .systemFont(ofSize: 15, weight: .semibold)
         button.setButtonType(.momentaryChange)
-        button.focusRingType = .default
+        button.focusRingType = .none
         button.currentLabel = label
         button.onRecord = onRecord
+        button.onRecordingChanged = onRecordingChanged
         button.toolTip = "点击后按下快捷键，Esc 取消"
         return button
     }
@@ -493,11 +543,13 @@ private struct ShortcutRecorderControl: NSViewRepresentable {
     func updateNSView(_ button: ShortcutRecorderButton, context: Context) {
         button.currentLabel = label
         button.onRecord = onRecord
+        button.onRecordingChanged = onRecordingChanged
     }
 }
 
 private final class ShortcutRecorderButton: NSButton {
     var onRecord: ((ShortcutDefinition) -> Void)?
+    var onRecordingChanged: ((Bool) -> Void)?
     var currentLabel = "未设置" {
         didSet { if !isRecording { title = displayTitle } }
     }
@@ -517,6 +569,7 @@ private final class ShortcutRecorderButton: NSButton {
         isRecording = true
         peakModifiers = []
         title = "请按快捷键"
+        onRecordingChanged?(true)
     }
 
     override func keyDown(with event: NSEvent) {
@@ -572,8 +625,10 @@ private final class ShortcutRecorderButton: NSButton {
     }
 
     private func stopRecording() {
+        let wasRecording = isRecording
         isRecording = false
         peakModifiers = []
         title = displayTitle
+        if wasRecording { onRecordingChanged?(false) }
     }
 }

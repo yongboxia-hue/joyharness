@@ -73,7 +73,7 @@ struct ConnectionView: View {
                         // lines up against it. Three columns divided at 33% and
                         // 66% and matched nothing above them.
                         LazyVGrid(
-                            columns: Array(repeating: GridItem(.flexible(), spacing: 14), count: 2),
+                            columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3),
                             spacing: 12
                         ) {
                             ForEach(previewMappings) { item in
