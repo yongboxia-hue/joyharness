@@ -127,6 +127,11 @@ class KeyMapper:
         # Stick mapping enabled (controllable from GUI)
         self._stick_enabled: bool = True
         self._paused: bool = False
+        # While set, only these buttons do anything. The onboarding key steps
+        # need the one key they are teaching to really work -- X really
+        # focusing the field, B really deleting -- while a stray Y (⌘Tab)
+        # would take the user out of the window mid-lesson.
+        self._allowed_buttons: frozenset[str] | None = None
 
         # Window cycler for VS Code window switching
         self._window_cycler = WindowCycler()
@@ -241,7 +246,7 @@ class KeyMapper:
 
     def button_down_name(self, btn_name: str) -> None:
         """Handle a named button press from non-pygame input sources."""
-        if self._paused:
+        if self._paused or not self._button_allowed(btn_name):
             return
         mapping = self._button_name_mappings.get(btn_name)
         if mapping is None:
@@ -333,7 +338,7 @@ class KeyMapper:
 
     def button_up_name(self, btn_name: str) -> None:
         """Handle a named button release from non-pygame input sources."""
-        if self._paused:
+        if self._paused or not self._button_allowed(btn_name):
             return
         self._button_up_mapped(("raw", btn_name), btn_name)
 
@@ -517,7 +522,7 @@ class KeyMapper:
             self._stick_direction_locked(direction)
 
     def _stick_direction_locked(self, direction: str) -> None:
-        if self._paused:
+        if self._paused or self._allowed_buttons is not None:
             return
 
         if self._app_switch_active:
@@ -569,7 +574,7 @@ class KeyMapper:
     def stick_centered(self) -> None:
         """Handle stick returning to center."""
         with self._state_lock:
-            if self._paused:
+            if self._paused or self._allowed_buttons is not None:
                 return
             if not self._stick_enabled:
                 return
@@ -592,6 +597,30 @@ class KeyMapper:
                 from . import keyboard_output
                 keyboard_output.release_all()
             logger.info("Key mapping %s", "paused" if paused else "resumed")
+
+    def set_allowed_buttons(self, buttons) -> None:
+        """Let only `buttons` through, or everything again with None.
+
+        Narrowing releases whatever is held first, the same as pausing does:
+        a key held down across the switch would otherwise never see its
+        release.
+        """
+        allowed = frozenset(buttons) if buttons is not None else None
+        with self._state_lock:
+            if allowed == self._allowed_buttons:
+                return
+            self._allowed_buttons = allowed
+            self.release_all()
+            from . import keyboard_output
+            keyboard_output.release_all()
+
+    def _button_allowed(self, btn_name: str) -> bool:
+        return self._allowed_buttons is None or btn_name in self._allowed_buttons
+
+    @property
+    def output_held(self) -> bool:
+        """Output is suspended in whole or in part, for whatever reason."""
+        return self._paused or self._allowed_buttons is not None
 
     def set_haptic(self, callback) -> None:
         self._haptic = callback

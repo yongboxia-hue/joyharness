@@ -27,7 +27,20 @@ actor RuntimeClient {
     private struct Command: Encodable {
         let id: String
         let type: String
-        let payload: [String: Bool]?
+        let payload: [String: CommandValue]?
+    }
+
+    enum CommandValue: Encodable {
+        case bool(Bool)
+        case strings([String])
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.singleValueContainer()
+            switch self {
+            case .bool(let value): try container.encode(value)
+            case .strings(let value): try container.encode(value)
+            }
+        }
     }
 
     private struct Response: Decodable {
@@ -42,6 +55,7 @@ actor RuntimeClient {
         case bool(Bool)
         case string(String)
         case number(Double)
+        case array([JSONValue])
         case null
 
         init(from decoder: Decoder) throws {
@@ -50,6 +64,7 @@ actor RuntimeClient {
             else if let value = try? container.decode(Bool.self) { self = .bool(value) }
             else if let value = try? container.decode(String.self) { self = .string(value) }
             else if let value = try? container.decode(Double.self) { self = .number(value) }
+            else if let value = try? container.decode([JSONValue].self) { self = .array(value) }
             else { throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unsupported JSON value") }
         }
     }
@@ -63,20 +78,30 @@ actor RuntimeClient {
 
     /// Suspend key output without recording it as the user's choice.
     ///
-    /// The onboarding button test needs the presses it is teaching to stay
-    /// silent, but that hold belongs to the sheet, not to the user -- so it
-    /// deliberately does not go through set_paused, which persists.
+    /// The walkthrough's key steps let through only the key being taught, so
+    /// it really works while a stray press elsewhere does nothing. That hold
+    /// belongs to the sheet, not to the user -- so it deliberately does not
+    /// go through set_paused, which persists. Releasing it puts back whatever
+    /// the user's own pause says.
     @discardableResult
-    func holdOutput(_ held: Bool) async throws -> Bool {
-        let response = try await send(type: "hold_output", payload: ["held": held])
+    func holdOutput(_ held: Bool, allowing buttons: [String]? = nil) async throws -> Bool {
+        var payload: [String: CommandValue] = ["held": .bool(held)]
+        if let buttons { payload["allow"] = .strings(buttons) }
+        let response = try await send(type: "hold_output", payload: payload)
         guard case .bool(let confirmed)? = response.result["held"] else {
             throw RuntimeClientError.invalidResponse
         }
         return confirmed
     }
 
+    /// A pulse on every connected controller: the "this one" signal when a
+    /// controller connects during the walkthrough.
+    func buzz(long: Bool) async throws {
+        _ = try await send(type: "buzz", payload: ["long": .bool(long)])
+    }
+
     func setPaused(_ paused: Bool) async throws -> Bool {
-        let response = try await send(type: "set_paused", payload: ["paused": paused])
+        let response = try await send(type: "set_paused", payload: ["paused": .bool(paused)])
         guard case .bool(let confirmed)? = response.result["paused"] else {
             throw RuntimeClientError.invalidResponse
         }
@@ -87,7 +112,7 @@ actor RuntimeClient {
         _ = try await send(type: "reload_config", payload: nil)
     }
 
-    private func send(type: String, payload: [String: Bool]?) async throws -> Response {
+    private func send(type: String, payload: [String: CommandValue]?) async throws -> Response {
         guard !requestInFlight else { throw RuntimeClientError.busy }
         requestInFlight = true
         defer { requestInFlight = false }

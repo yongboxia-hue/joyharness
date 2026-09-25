@@ -43,6 +43,15 @@ enum InputFocus {
         guard let app = NSWorkspace.shared.frontmostApplication else {
             throw InputGatewayError.invalidRequest("没有前台应用")
         }
+        // When the app in front is this one, the accessibility calls below are
+        // not messages to another process: AppKit answers them in place, on
+        // the calling thread -- and setting focus runs makeFirstResponder,
+        // which traps anywhere but the main thread. The gateway calls this
+        // from its socket queue, so pressing X over JoyHarness's own window
+        // (the walkthrough's practice field, the 按键 page) killed the app.
+        if app.processIdentifier == ProcessInfo.processInfo.processIdentifier, !Thread.isMainThread {
+            return try DispatchQueue.main.sync { try focusFrontmostInput() }
+        }
 
         let axApp = AXUIElementCreateApplication(app.processIdentifier)
         var visited = 0

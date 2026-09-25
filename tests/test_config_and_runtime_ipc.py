@@ -326,7 +326,9 @@ class OutputHoldTests(unittest.TestCase):
         runtime_ipc.PAUSE_FILE.unlink(missing_ok=True)
         self.calls: list[bool] = []
 
-        mapper = SimpleNamespace(paused=False)
+        self.allowed: list = []
+        self.buzz_calls: list[bool] = []
+        mapper = SimpleNamespace(paused=False, output_held=False)
 
         class FakeRuntime:
             stop_event = threading.Event()
@@ -338,6 +340,14 @@ class OutputHoldTests(unittest.TestCase):
             def set_paused(_self, value: bool) -> None:
                 self.calls.append(value)
                 mapper.paused = value
+                mapper.output_held = value or mapper.output_held
+
+            def set_allowed_buttons(_self, buttons) -> None:
+                self.allowed.append(buttons)
+
+            def buzz(_self, long: bool = False) -> list:
+                self.buzz_calls.append(long)
+                return ["R"]
 
             def input_events_snapshot(_self) -> list:
                 return []
@@ -383,6 +393,33 @@ class OutputHoldTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.bridge._execute_command("hold_output", {"held": "yes"})
 
+    def test_hold_with_allow_lets_the_taught_key_through(self) -> None:
+        """The key steps need X to really focus and B to really delete."""
+        self.bridge._execute_command("hold_output", {"held": True, "allow": ["X"]})
+        self.assertEqual(self.allowed[-1], ["X"])
+        self.assertEqual(self.calls, [False], "an allow-list hold must not pause everything")
+
+    def test_release_restores_the_users_own_pause(self) -> None:
+        """Someone who had paused before the walkthrough is still paused after it."""
+        self.bridge._execute_command("set_paused", {"paused": True})
+        self.bridge._execute_command("hold_output", {"held": True, "allow": ["ZR"]})
+        self.bridge._execute_command("hold_output", {"held": False})
+        self.assertIsNone(self.allowed[-1])
+        self.assertEqual(self.calls[-1], True)
+
+        runtime_ipc.PAUSE_FILE.unlink(missing_ok=True)
+        self.bridge._execute_command("hold_output", {"held": False})
+        self.assertEqual(self.calls[-1], False)
+
+    def test_allow_must_be_button_names(self) -> None:
+        with self.assertRaises(ValueError):
+            self.bridge._execute_command("hold_output", {"held": True, "allow": "X"})
+
+    def test_buzz_reports_who_felt_it(self) -> None:
+        result = self.bridge._execute_command("buzz", {"long": True})
+        self.assertEqual(result, {"buzzed": ["R"]})
+        self.assertEqual(self.buzz_calls, [True])
+
 
 class HapticTests(unittest.TestCase):
     """A buzz should tell you something you cannot otherwise know.
@@ -426,6 +463,23 @@ class HapticTests(unittest.TestCase):
         self.mapper.button_down_name("A")
         self.mapper.button_up_name("A")
         self.assertEqual(self.buzzes, [])
+
+    def test_allowed_buttons_gate_everything_else(self) -> None:
+        from src import key_mapper as km
+
+        sent: list = []
+        km.keyboard_output.tap = lambda k, duration=0.02: sent.append(k)
+        km.keyboard_output.press = lambda k: sent.append(k)
+        self.mapper.set_allowed_buttons(["B"])
+        self.mapper.button_down_name("Y")          # ⌘Tab would leave the window
+        self.mapper.button_up_name("Y")
+        self.assertEqual(sent, [], "a button outside the lesson still fired")
+        self.mapper.button_down_name("B")
+        self.mapper.button_up_name("B")
+        self.assertTrue(sent, "the taught button did nothing")
+        self.assertTrue(self.mapper.output_held)
+        self.mapper.set_allowed_buttons(None)
+        self.assertFalse(self.mapper.output_held)
 
     def test_a_plain_key_never_buzzes(self) -> None:
         self.mapper.button_down_name("B")          # passthrough ⌫

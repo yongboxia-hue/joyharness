@@ -180,10 +180,10 @@ for side in ("left", "right"):
     check(buttons and set(buttons) <= set(config["profiles"][mode]["mappings"]["buttons"]),
           f"ConnectionView.previewOrder[{side}] names a button that does not exist", f"{buttons}")
 
-check("workflowChecks: [OnboardingCheck] { state.onboardingChecks }" in onboarding_view,
-      "the onboarding button test must read the installed mappings, not its own table",
+check("state.currentOnboardingCheck" in onboarding_view and "OnboardingCheck(" not in onboarding_view,
+      "the walkthrough key steps must read the installed mappings, not their own table",
       "it once hardcoded ZR=fn / +=⌘V and went on teaching that after a remap")
-for literal in ('"fn", "按一下"', '"⌘V"', '"⌥A"', '"↩", "按一下"'):
+for literal in ('"fn", "按一下"', '"⌘V"', '"⌥A"', '"↩", "按一下"', '"⌫"', '"↩"'):
     forbid(onboarding_view, literal,
            f"OnboardingView hardcodes the shortcut {literal} again")
 
@@ -257,8 +257,8 @@ check(not per_button, "the shipped config stamps a per-button threshold again",
       f"{per_button} -- absent means 'use long_press_threshold', which is the point")
 forbid(app_model, '"threshold": 0.35',
        "the mapping editor writes its own copy of the long-press threshold again")
-check("duration >= longPressThreshold" in app_model,
-      "the onboarding button test hardcodes a long-press duration again")
+check("duration < longPressThreshold" in app_model,
+      "the walkthrough hardcodes a long-press duration again")
 check("long_press_threshold" in app_model,
       "AppState must read the threshold from the config the runtime reads")
 # Checked by construction rather than by reading the source: what matters is
@@ -349,7 +349,11 @@ require(about_view, '.accessibilityIdentifier("export-diagnostics")', "diagnosti
 require(settings_view, "辅助功能授权", "accessibility grant row")
 require(about_view, "重启服务", "service restart action")
 require(root_view, "state.isShowingOnboarding", "first-run onboarding presentation")
-require(onboarding_view, "private var pendingCheck", "one-at-a-time shortcut onboarding")
+require(app_model, "var currentOnboardingCheck: OnboardingCheck?", "one key per walkthrough step")
+# The key steps let only the key being taught through. A hold with no allow
+# list silences that key too, and the step turns back into a picture.
+check("holdOutput(wanted != nil, allowing: wanted)" in app_model,
+      "the walkthrough holds every key again, so the key it teaches does nothing")
 require(onboarding_view, "state.leftController.connected || state.rightController.connected",
         "either controller satisfies onboarding")
 # Two boundaries the walkthrough has to state, asserted by meaning rather
@@ -442,6 +446,14 @@ forbid(app_model, "请将 App 放入", "the unactionable login-item instruction 
 # controller, so "finish it to stop it" is not a way out.
 check("func dismissOnboarding(markCompleted: Bool = true)" in app_model,
       "稍后设置 stops recording that the walkthrough was shown")
+
+# Focusing a field in JoyHarness's own window from the gateway's socket queue
+# runs makeFirstResponder off the main thread, which traps. Pressing X over
+# the walkthrough's practice field killed the app every time.
+input_focus = read("macos", "JoyHarnessNative", "InputFocus.swift")
+check("app.processIdentifier == ProcessInfo.processInfo.processIdentifier" in input_focus
+      and "DispatchQueue.main.sync" in input_focus,
+      "InputFocus focuses the app's own window off the main thread again")
 
 # The runtime numbers its input events from one again after a restart.
 check("highest < latestInputSequence" in app_model,

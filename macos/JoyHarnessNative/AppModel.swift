@@ -155,12 +155,16 @@ final class AppState: ObservableObject {
     /// longer moves it under them.
     private var mappingSideWasChosen = false
     @Published var isRefreshingStatus = false
-    @Published var isShowingOnboarding = false { didSet { syncOnboardingOutputHold() } }
-    @Published var onboardingStep = 0 { didSet { syncOnboardingOutputHold() } }
-    /// What `paused` was before onboarding took over, so leaving the test puts
-    /// it back rather than assuming it was running.
-    private var pausedBeforeOnboarding: Bool?
+    @Published var isShowingOnboarding = false { didSet { onboardingStepChanged() } }
+    @Published var onboardingStep = 0 { didSet { onboardingStepChanged() } }
     @Published private(set) var onboardingWorkflowProgress: Set<String> = []
+    /// Buttons held down right now, so the walkthrough can light the key up
+    /// on the controller drawing while it is pressed.
+    @Published private(set) var onboardingPressedButtons: Set<String> = []
+    /// Bumped on every release. A tap short enough to arrive as a down and an
+    /// up in the same status snapshot never shows in `onboardingPressedButtons`,
+    /// so the drawing flashes on this instead.
+    @Published private(set) var onboardingPressFlash = OnboardingPressFlash(button: "", count: 0)
     @Published var isExportingDiagnostics = false
 
     let runtimeURL: URL
@@ -171,8 +175,14 @@ final class AppState: ObservableObject {
     private let runtimeClient: RuntimeClient
     private let configStore: ConfigStore
     private var latestInputSequence = 0
-    private var onboardingInputBaseline = 0
     private var onboardingPressTimes: [String: TimeInterval] = [:]
+    /// What the runtime was last told to let through; nil when no hold is on.
+    private var onboardingHeldButtons: [String]?
+    private var onboardingHoldSent = false
+    private var runtimeCommandQueue: Task<Void, Never>?
+    private var onboardingBuzzedSides: Set<ControllerSide> = []
+    private var lastOnboardingStep: Int?
+    private var onboardingFastTimer: Timer?
     private static let appearanceDefaultsKey = "JoyHarnessAppearance"
     private static let onboardingDefaultsKey = "JoyHarnessOnboardingVersion"
     private static let onboardingVersion = 2
@@ -310,7 +320,11 @@ final class AppState: ObservableObject {
         }
 
         let running = (payload["running"] as? Bool) ?? false
-        if serviceRunning != running { serviceRunning = running }
+        if serviceRunning != running {
+            serviceRunning = running
+            // A restarted runtime starts with no hold. Say it again.
+            if running { onboardingHoldSent = false; syncOnboardingOutputHold() }
+        }
         let isPaused = (payload["paused"] as? Bool) ?? false
         if paused != isPaused { paused = isPaused }
         let mode = (payload["connection_mode"] as? String) ?? "none"
@@ -321,6 +335,7 @@ final class AppState: ObservableObject {
         let right = ControllerStatusParser.parse(battery["R"])
         if rightController != right { rightController = right }
         followConnectedControllerIfUnchosen()
+        buzzNewlyConnectedControllers()
         processOnboardingInputEvents(RuntimeInputEvent.parse(payload["input_events"]))
     }
 
@@ -402,38 +417,92 @@ final class AppState: ObservableObject {
         }
     }
 
-    /// The button test asks the user to press keys, and those keys are mapped
-    /// to real shortcuts -- so without this, following the instructions also
-    /// fired fn, pasted, or sent a message. Detection is unaffected: the
-    /// reader records every press before handing it to the mapper, and only
-    /// the mapper honours the pause.
+    /// The key steps teach one key each, and that key has to really work --
+    /// X really focusing the practice field, B really deleting -- or the
+    /// lesson is a picture of a lesson. Everything else is held: a stray Y
+    /// (⌘Tab) would take the user out of the window mid-step. Detection is
+    /// unaffected either way; the reader records every press before handing
+    /// it to the mapper.
     private func syncOnboardingOutputHold() {
-        let shouldHold = isShowingOnboarding && onboardingStep == Self.onboardingButtonTestStep
-        if shouldHold {
-            guard pausedBeforeOnboarding == nil else { return }
-            pausedBeforeOnboarding = paused
-            guard !paused else { return }
-            setPausedForOnboarding(true)
-        } else {
-            guard let previous = pausedBeforeOnboarding else { return }
-            pausedBeforeOnboarding = nil
-            guard !previous else { return }
-            setPausedForOnboarding(false)
+        let wanted: [String]? = isShowingOnboarding ? currentOnboardingCheck.map { [$0.button] } : nil
+        guard wanted != onboardingHeldButtons || (wanted != nil && !onboardingHoldSent) else { return }
+        let wasHeld = onboardingHeldButtons != nil || onboardingHoldSent
+        onboardingHeldButtons = wanted
+        guard wanted != nil || wasHeld else { return }
+        onboardingHoldSent = wanted != nil
+        enqueueRuntimeCommand { client in
+            // Releasing goes back to the user's own pause, which the runtime
+            // keeps -- so there is nothing to remember here about it.
+            try await client.holdOutput(wanted != nil, allowing: wanted)
         }
     }
 
-    private func setPausedForOnboarding(_ value: Bool) {
-        Task {
-            do {
-                try await runtimeClient.holdOutput(value)
-            } catch {
-                // Not worth an error banner over the onboarding sheet; the
-                // worst case is that the practice presses also take effect,
-                // which is what used to happen every time.
-                NSLog("JoyHarness: could not hold output during onboarding: %@",
-                      error.localizedDescription)
+    /// Onboarding sends its commands back to back -- one per step, a buzz on
+    /// connect -- and the client refuses a second request while one is in
+    /// flight. Queued, with a short retry on busy, so none is dropped.
+    private func enqueueRuntimeCommand(_ operation: @escaping (RuntimeClient) async throws -> Void) {
+        let previous = runtimeCommandQueue
+        let client = runtimeClient
+        runtimeCommandQueue = Task {
+            await previous?.value
+            for _ in 0..<6 {
+                do {
+                    try await operation(client)
+                    return
+                } catch RuntimeClientError.busy {
+                    try? await Task.sleep(nanoseconds: 150_000_000)
+                } catch {
+                    // Not worth an error banner over the walkthrough; the
+                    // worst case is a stray key doing its normal thing.
+                    NSLog("JoyHarness: onboarding runtime command failed: %@", error.localizedDescription)
+                    return
+                }
             }
         }
+    }
+
+    private func onboardingStepChanged() {
+        let step = isShowingOnboarding ? onboardingStep : nil
+        guard step != lastOnboardingStep else { return }
+        lastOnboardingStep = step
+        if step == Self.onboardingConnectStep {
+            // Entering the step with a controller already connected buzzes it
+            // too: "this one in your hand is the one that is connected".
+            onboardingBuzzedSides = []
+            buzzNewlyConnectedControllers()
+        }
+        onboardingPressedButtons = []
+        syncOnboardingOutputHold()
+
+        // The key steps light the key up as it is pressed. At the normal
+        // once-a-second poll that arrives late enough to read as "did it
+        // register?"; the runtime publishes a press the moment it happens,
+        // so reading faster here is all it takes.
+        let fast = step.map { $0 >= Self.onboardingFirstKeyStep } ?? false
+        if fast, onboardingFastTimer == nil {
+            onboardingFastTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] _ in
+                Task { @MainActor in self?.refreshStatus() }
+            }
+        } else if !fast {
+            onboardingFastTimer?.invalidate()
+            onboardingFastTimer = nil
+        }
+    }
+
+    /// One pulse when a controller connects during the walkthrough. A green
+    /// label says *a* controller is connected; a buzz in the hand says it is
+    /// this one -- which matters with a second Joy-Con or a Switch nearby.
+    /// Only here: everywhere else the result is already on screen.
+    private func buzzNewlyConnectedControllers() {
+        guard isShowingOnboarding, onboardingStep == Self.onboardingConnectStep else { return }
+        var connected = Set<ControllerSide>()
+        if leftController.connected { connected.insert(.left) }
+        if rightController.connected { connected.insert(.right) }
+        let fresh = connected.subtracting(onboardingBuzzedSides)
+        // A side that drops and comes back buzzes again.
+        onboardingBuzzedSides = connected
+        guard !fresh.isEmpty else { return }
+        enqueueRuntimeCommand { client in try await client.buzz(long: true) }
     }
 
     func togglePaused() {
@@ -549,56 +618,61 @@ final class AppState: ObservableObject {
         beginOnboardingWorkflowMonitoring()
     }
 
-    /// The step that asks the user to press buttons.
-    static let onboardingButtonTestStep = 3
+    static let onboardingConnectStep = 2
+    /// The key steps follow the three setup steps, one per check.
+    static let onboardingFirstKeyStep = 3
 
-    /// The button test, read from the mappings that are actually installed.
+    var onboardingStepCount: Int { Self.onboardingFirstKeyStep + onboardingChecks.count }
+
+    /// The side the key steps are taught on: the connected one, and the right
+    /// one when both or neither are. Either controller's presses count.
+    var onboardingSide: ControllerSide { previewSide }
+
+    /// The key steps, read from the mappings that are actually installed.
     ///
     /// This used to be a table in OnboardingView saying ZR is fn and + is ⌘V.
     /// It happened to be right, but only because nobody had changed the
     /// defaults yet -- reopen the walkthrough after remapping a button and it
-    /// would confidently teach the old shortcut. Same reason the 连接 summary
-    /// stopped carrying its own button table.
+    /// would confidently teach the old shortcut. A button with nothing on it
+    /// is simply not taught.
     var onboardingChecks: [OnboardingCheck] {
-        let side: ControllerSide = leftController.connected && !rightController.connected ? .left : .right
+        let side = onboardingSide
         let cards = mappingCards(for: side)
-        // Both sides mirror by position, so the left hand's ZL/− stand in for
-        // the right hand's ZR/+.
+        // Both sides mirror by position, so the left hand's ZL stands in for
+        // the right hand's ZR; X/B/A are the same names on either side.
         let trigger = side == .left ? "ZL" : "ZR"
-        let modifier = side == .left ? "Minus" : "Plus"
 
-        func check(_ id: String, _ button: String, gesture: String?, long: Bool) -> OnboardingCheck? {
+        func check(_ lesson: OnboardingLesson, _ button: String) -> OnboardingCheck? {
             guard let card = cards.first(where: { $0.id == button }) else { return nil }
-            var row = card.rows.first
-            if let gesture {
-                row = card.rows.first(where: { $0.gesture == gesture })
-            }
-            guard let row, row.value != "未设置" else { return nil }
+            // The tap is what is taught. Matched by slot id, not by the
+            // gesture's label, which is display text and gets translated.
+            let row = card.rows.first(where: { $0.id == "single" }) ?? card.rows.first
+            guard let row, row.isSet else { return nil }
             return OnboardingCheck(
-                id: id, button: button, isLongPress: long, key: card.key, shortcut: row.value
+                lesson: lesson, button: button, key: card.key, hotspotKey: card.hotspotKey,
+                shortcut: row.value, tapOnly: card.rows.count > 1
             )
         }
 
         return [
-            check("fn", trigger, gesture: nil, long: false),
-            check("paste", modifier, gesture: "单击", long: false),
-            check("dictation", modifier, gesture: "长按", long: true),
-            check("enter", "A", gesture: "单击", long: false) ?? check("enter", "A", gesture: nil, long: false)
+            check(.focus, "X"),
+            check(.voice, trigger),
+            check(.delete, "B"),
+            check(.send, "A")
         ].compactMap { $0 }
     }
 
-    /// Derived, not stored: the test is done when every check it is showing has
-    /// happened. Storing a count meant the "four presses" in the detector and
-    /// the four rows on screen were two separate facts.
-    var onboardingWorkflowConfirmed: Bool {
+    /// The check the current step teaches, if this is a key step.
+    var currentOnboardingCheck: OnboardingCheck? {
         let checks = onboardingChecks
-        return !checks.isEmpty && checks.allSatisfy { onboardingWorkflowProgress.contains($0.id) }
+        let index = onboardingStep - Self.onboardingFirstKeyStep
+        return checks.indices.contains(index) ? checks[index] : nil
     }
 
     func beginOnboardingWorkflowMonitoring() {
         onboardingWorkflowProgress = []
-        onboardingInputBaseline = latestInputSequence
         onboardingPressTimes.removeAll()
+        onboardingPressedButtons = []
     }
 
     func onboardingWorkflowHas(_ item: String) -> Bool {
@@ -608,44 +682,44 @@ final class AppState: ObservableObject {
     private func processOnboardingInputEvents(_ events: [RuntimeInputEvent]) {
         // A restarting runtime numbers its events from one again, so a sequence
         // lower than what we have already seen means "new process", not "old
-        // event". Without this the baseline stayed at the old high-water mark
-        // and the button test could never be satisfied again in this session.
+        // event". Without this the high-water mark stayed where the old
+        // process left it and no press could ever count again this session.
         if let highest = events.map(\.sequence).max(), highest < latestInputSequence {
             latestInputSequence = 0
-            onboardingInputBaseline = 0
             onboardingPressTimes.removeAll()
         }
+        let fresh = events.filter { $0.sequence > latestInputSequence }
+        latestInputSequence = max(latestInputSequence, fresh.map(\.sequence).max() ?? latestInputSequence)
 
-        guard isShowingOnboarding, onboardingStep == Self.onboardingButtonTestStep else {
-            latestInputSequence = max(latestInputSequence, events.map(\.sequence).max() ?? latestInputSequence)
-            return
-        }
+        guard isShowingOnboarding, let check = currentOnboardingCheck else { return }
 
-        // Either controller can run the test. The two sides mirror each other
-        // by position, so the same four checks map onto ZR/Plus/A on the right
-        // and ZL/Minus/A on the left -- keying only off the right-hand names
-        // meant a left-only user could never finish onboarding.
-        for event in events where event.sequence > onboardingInputBaseline {
-            latestInputSequence = max(latestInputSequence, event.sequence)
+        // Either controller can run the steps. The two sides mirror each
+        // other by position, so a left-only user presses ZL where the right
+        // hand presses ZR, and the same X/B/A names on the d-pad.
+        var pressed = onboardingPressedButtons
+        for event in fresh {
             if event.phase == "down" {
                 onboardingPressTimes[event.button] = event.timestamp
+                pressed.insert(event.button)
                 continue
             }
-            guard event.phase == "up", let startedAt = onboardingPressTimes.removeValue(forKey: event.button) else {
-                continue
-            }
+            guard event.phase == "up" else { continue }
+            pressed.remove(event.button)
+            onboardingPressFlash = OnboardingPressFlash(
+                button: event.button, count: onboardingPressFlash.count + 1
+            )
+            guard let startedAt = onboardingPressTimes.removeValue(forKey: event.button),
+                  event.button == check.button else { continue }
+            // A button that also has a long press only counts a tap: holding
+            // A is a new line, not a send, and the step says "press".
+            // The threshold comes from the config the runtime splits on, so
+            // what counts here and what actually fired are one fact.
             let duration = max(0, event.timestamp - startedAt)
-            // The checks on screen decide what counts, and the threshold comes
-            // from the config the runtime splits on -- so what the user is told
-            // to press, what satisfies it, and what actually fires are one fact.
-            let candidates = onboardingChecks.filter { $0.button == event.button }
-            let wasLong = duration >= longPressThreshold
-            let match = candidates.first { $0.isLongPress == wasLong }
-                ?? (candidates.count == 1 ? candidates.first : nil)
-            if let match {
-                onboardingWorkflowProgress.insert(match.id)
+            if !check.tapOnly || duration < longPressThreshold {
+                onboardingWorkflowProgress.insert(check.id)
             }
         }
+        if pressed != onboardingPressedButtons { onboardingPressedButtons = pressed }
     }
 
     /// Closing the walkthrough -- by finishing it or by choosing 稍后设置 --

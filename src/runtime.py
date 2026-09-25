@@ -58,6 +58,11 @@ class JoyHarnessRuntime:
         self._input_event_lock = threading.Lock()
         self._input_event_sequence = 0
         self._input_events: list[dict] = []
+        # Set on every press and release so the IPC loop publishes it now
+        # rather than on its next half-second tick. The walkthrough lights
+        # the key up as you press it, and half a second late reads as "did
+        # it register?".
+        self.input_arrived = threading.Event()
         self._started = False
 
     @property
@@ -194,6 +199,7 @@ class JoyHarnessRuntime:
                 }
             )
             del self._input_events[:-64]
+        self.input_arrived.set()
 
     def input_events_snapshot(self) -> list[dict]:
         with self._input_event_lock:
@@ -206,6 +212,22 @@ class JoyHarnessRuntime:
             self.key_mapper_right.set_paused(paused)
         if self.key_mapper_left is not None:
             self.key_mapper_left.set_paused(paused)
+
+    def set_allowed_buttons(self, buttons) -> None:
+        """Like set_paused, global across both sides: the onboarding step
+        names the button, and either controller may be the one pressing it."""
+        for mapper in (self.key_mapper_right, self.key_mapper_left):
+            if mapper is not None:
+                mapper.set_allowed_buttons(buttons)
+
+    def buzz(self, long: bool = False) -> list[str]:
+        """Buzz every connected controller; return the sides that got it."""
+        buzzed = []
+        for reader in (self.raw_reader_left, self.raw_reader):
+            if reader is not None and reader.connected:
+                reader.buzz(long=long)
+                buzzed.append(reader.side)
+        return buzzed
 
     def reload_config(self) -> dict:
         """Reload the persisted config and apply it to both mappers without

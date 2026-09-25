@@ -60,17 +60,31 @@ enum ControllerStatusParser {
 }
 
 
-/// One step of the onboarding button test, derived from the installed mappings.
+/// What a walkthrough key step teaches. The order here is the order taught:
+/// put the cursor in the box, say something, fix it, send it.
+enum OnboardingLesson: String, CaseIterable, Sendable {
+    case focus, voice, delete, send
+}
+
+/// One walkthrough key step, derived from the installed mappings.
 struct OnboardingCheck: Identifiable, Equatable {
-    /// The progress key this check records when it happens.
-    let id: String
+    let lesson: OnboardingLesson
     /// The mapping's button name, as the runtime reports it in input events.
     let button: String
-    let isLongPress: Bool
     /// What is printed on the controller ("ZR", "−", "→"), from the card.
     let key: String
-    /// The shortcut that button actually sends, rendered from the config.
+    /// Where that key sits on the controller drawing.
+    let hotspotKey: String
+    /// The shortcut a tap sends, rendered from the config.
     let shortcut: String
+    /// The button also has a long press, so only a tap counts.
+    let tapOnly: Bool
 
-    var gesture: String { isLongPress ? "按住不放" : "按一下" }
+    /// The progress key this check records when it happens.
+    var id: String { lesson.rawValue }
+}
+
+struct OnboardingPressFlash: Equatable {
+    let button: String
+    let count: Int
 }

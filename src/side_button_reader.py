@@ -41,6 +41,8 @@ _REPORT_RUMBLE_ONLY = 0x10
 # side; this raises amplitude over the neutral pattern without going loud
 # enough to be startling in a quiet room.
 _BUZZ = bytes([0x00, 0x01, 0x40, 0x60, 0x00, 0x01, 0x40, 0x60])
+_SHORT_BUZZ_SECONDS = 0.05
+_LONG_BUZZ_SECONDS = 0.25
 
 
 # How long to leave the device alone after asking it to sleep, so the retry
@@ -134,6 +136,7 @@ class RawJoyConReader:
         self._connected = threading.Event()
         self._asleep = threading.Event()
         self._buzz_pending = threading.Event()
+        self._buzz_long = False
         key_mapper.set_haptic(self.buzz)
         self._battery_lock = threading.Lock()
         self._battery_state: tuple[str, int] = ("unknown", -1)
@@ -205,21 +208,28 @@ class RawJoyConReader:
             logger.debug("Raw Joy-Con (%s) subcommand 0x%02X failed: %s", self._side, subcommand, e)
             return False
 
-    def buzz(self) -> None:
-        """Ask for a short pulse the next time the read loop comes round.
+    def buzz(self, long: bool = False) -> None:
+        """Ask for a pulse the next time the read loop comes round.
 
         Queued rather than sent here because the HID handle belongs to the
         reader thread; KeyMapper runs on it but must not write to the device
         behind the loop's back.
+
+        `long` is the "this is the one that connected" pulse from the
+        walkthrough. The long-press tick is deliberately tiny -- you feel it
+        through a finger already on the button -- and at that length a
+        controller lying in an open hand is easy to miss.
         """
+        self._buzz_long = long
         self._buzz_pending.set()
 
     def _emit_buzz(self, dev) -> None:
+        duration = _LONG_BUZZ_SECONDS if self._buzz_long else _SHORT_BUZZ_SECONDS
         try:
             counter = self._command_counter & 0x0F
             self._command_counter = (self._command_counter + 1) & 0x0F
             dev.write(bytes([_REPORT_RUMBLE_ONLY, counter]) + _BUZZ)
-            time.sleep(0.05)
+            time.sleep(duration)
             counter = self._command_counter & 0x0F
             self._command_counter = (self._command_counter + 1) & 0x0F
             dev.write(bytes([_REPORT_RUMBLE_ONLY, counter]) + _NEUTRAL_RUMBLE)

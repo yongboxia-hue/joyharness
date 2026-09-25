@@ -19,6 +19,8 @@ struct MappingRow: Identifiable, Equatable {
     let id: String
     let gesture: String?
     let value: String
+
+    var isSet: Bool { value != "未设置" }
 }
 
 struct MappingCardModel: Identifiable, Equatable {

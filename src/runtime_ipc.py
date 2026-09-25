@@ -58,7 +58,19 @@ class RuntimeIpcBridge:
                 self._consume_command()
             except Exception:
                 logger.exception("IPC cycle failed; retrying next tick")
-            self._runtime.stop_event.wait(0.5)
+            # While the walkthrough holds output it changes the hold on every
+            # step, and a user who presses the next key within half a second
+            # of the step changing would press it into the previous step's
+            # hold: counted as done, but nothing happened. Look for commands
+            # more often while that is going on, and only then.
+            mapper = self._runtime.key_mapper
+            interval = 0.1 if mapper is not None and getattr(mapper, "output_held", False) else 0.5
+            input_arrived = getattr(self._runtime, "input_arrived", None)
+            if input_arrived is None:
+                self._runtime.stop_event.wait(interval)
+            else:
+                input_arrived.wait(interval)
+                input_arrived.clear()
         try:
             self._publish_status(running=False)
         except Exception:
@@ -81,7 +93,7 @@ class RuntimeIpcBridge:
             # reason. Usually the same as `paused`; they differ while a
             # transient hold is in effect. Diagnostic only -- the UI shows
             # `paused`, because that is the part the user decided.
-            "output_held": bool(self._runtime.key_mapper and self._runtime.key_mapper.paused),
+            "output_held": bool(self._runtime.key_mapper and self._runtime.key_mapper.output_held),
             "battery": {
                 "L": _controller_payload(self._runtime, "L"),
                 "R": _controller_payload(self._runtime, "R"),
@@ -154,14 +166,35 @@ class RuntimeIpcBridge:
             return {"paused": paused}
         if command_type == "hold_output":
             # Like set_paused, but deliberately does not touch PAUSE_FILE.
-            # The onboarding button test holds output while it teaches, and a
-            # hold that outlived the app -- a crash mid-test, say -- would
-            # leave the user paused on next launch with no idea why.
+            # The onboarding holds output while it teaches, and a hold that
+            # outlived the app -- a crash mid-walkthrough, say -- would leave
+            # the user paused on next launch with no idea why.
+            #
+            # `allow` narrows the hold to the buttons being taught, which
+            # then really work. Releasing goes back to whatever PAUSE_FILE
+            # says, so a user who had paused before the walkthrough is
+            # still paused after it.
             if not isinstance(payload, dict) or not isinstance(payload.get("held"), bool):
                 raise ValueError("hold_output requires a boolean payload.held")
+            allow = payload.get("allow")
+            if allow is not None and (
+                not isinstance(allow, list) or not all(isinstance(b, str) for b in allow)
+            ):
+                raise ValueError("hold_output payload.allow must be a list of button names")
             held = bool(payload["held"])
-            self._runtime.set_paused(held)
+            if held and allow:
+                self._runtime.set_allowed_buttons(allow)
+                self._runtime.set_paused(False)
+            elif held:
+                self._runtime.set_allowed_buttons(None)
+                self._runtime.set_paused(True)
+            else:
+                self._runtime.set_allowed_buttons(None)
+                self._runtime.set_paused(PAUSE_FILE.exists())
             return {"held": held}
+        if command_type == "buzz":
+            long = bool(payload.get("long")) if isinstance(payload, dict) else False
+            return {"buzzed": self._runtime.buzz(long=long)}
         if command_type == "reload_config":
             result = self._runtime.reload_config()
             self._publish_status()
