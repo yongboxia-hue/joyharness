@@ -8,6 +8,12 @@
 
 ![JoyHarness 连接页](assets/screenshots/connection.png)
 
+## 为什么做它
+
+我每天用语音写代码、回消息，一分钟能说 150 个字。为了能靠在椅背上说，配了桌面话筒和伸缩支架 —— 结果每说完一句，还是得坐起来按回车，再去抓鼠标。小键盘要么贵，要么只能平放在桌上。抽屉里那只 Joy-Con，刚好是握在手里的。
+
+[VaderCheng/JoyHarness](https://github.com/VaderCheng/JoyHarness) 已经用 Python 把 Joy-Con 映射成了键盘快捷键。我在它的基础上重新定义了整套按键，做了原生的 Mac 客户端。写代码之外，凡是一整天对着屏幕说、改、发的事都用得上：写东西、理思路、聊天回消息。
+
 ## 它做什么，不做什么
 
 JoyHarness 读手柄上的按键，把你配置的快捷键发给 macOS。**就到这里为止。**
@@ -15,8 +21,6 @@ JoyHarness 读手柄上的按键，把你配置的快捷键发给 macOS。**就�
 它**不录音、不做语音识别**。语音那一段由你自己选的输入法完成 —— 我用的是 Typeless 和豆包，换成任何能用系统快捷键启动的工具都可以。
 
 这一点决定了怎么配：默认映射里 `ZR` 发出的是 `fn`，**你得先在自己的语音输入法里把启动快捷键设成 `fn`**，按下去才会有反应。JoyHarness 只负责把键发出去，谁来接是那个工具的设置。
-
-它最初是为了让 AI 帮着写代码时少切一次手做的，但凡是需要长时间对着屏幕说、改、发的事情都适用：写东西、理思路、一整天的聊天和回消息。
 
 ## 默认映射
 
@@ -49,7 +53,7 @@ JoyHarness 读手柄上的按键，把你配置的快捷键发给 macOS。**就�
 
 安装包已用 Developer ID 签名并通过 Apple 公证，双击就能打开，不需要在系统设置里额外允许。签名固定，所以辅助功能只需要授权一次，以后升级不用重来。
 
-首次打开会有一段引导：授权、连接手柄，最后跑通一次真实按键。
+首次打开会有一段引导：授权、连手柄，然后在一段练习对话里把常用的键各按一遍。
 
 ## 改按键
 
@@ -76,10 +80,6 @@ JoyHarness 读手柄上的按键，把你配置的快捷键发给 macOS。**就�
 
 - 摇杆推动的四个方向只能改配置文件
 
-## 配件
-
-`assets/3d/` 里有一个可以直接 3D 打印的 **Joy-Con 磁吸麦克风握把**。握着手柄说话时，麦克风就在手上，不用对着屏幕喊。不是必需品，想做就拿去打。
-
 ## 反馈
 
 用得不顺、有想要的功能、或者哪里不对，欢迎开 [issue](https://github.com/yongboxia-hue/joyharness/issues)。
@@ -88,7 +88,7 @@ JoyHarness 读手柄上的按键，把你配置的快捷键发给 macOS。**就�
 
 ## 许可
 
-[MIT](LICENSE)
+[MIT](LICENSE)。Python 运行时起步于 [VaderCheng/JoyHarness](https://github.com/VaderCheng/JoyHarness)，它的版权声明一并保留在 LICENSE 里。
 
 界面里的手柄图形是本项目自己生成的素材，见 [`assets/controller/README.md`](assets/controller/README.md)。
 
