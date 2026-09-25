@@ -38,7 +38,6 @@ from .constants import (
 from .window_switcher import (
     WindowCycler,
     get_foreground_process_name,
-    get_foreground_hwnd,
     find_windows,
 )
 
@@ -220,17 +219,10 @@ class KeyMapper:
 
     def _find_current_window_index(self, windows: list["WindowInfo"]) -> int:
         """Find the index of the current foreground window in the list."""
-        import sys
-        if sys.platform == "win32":
-            hwnd = get_foreground_hwnd()
-            for i, w in enumerate(windows):
-                if w.hwnd == hwnd:
-                    return i
-        else:
-            fg_name = get_foreground_process_name()
-            for i, w in enumerate(windows):
-                if w.app_name.lower() == fg_name:
-                    return i
+        fg_name = get_foreground_process_name()
+        for i, w in enumerate(windows):
+            if w.app_name.lower() == fg_name:
+                return i
         return 0
 
     def button_down(self, button_index: int) -> None:
