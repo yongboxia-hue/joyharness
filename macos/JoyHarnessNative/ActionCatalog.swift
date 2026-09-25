@@ -15,11 +15,11 @@ enum ActionCatalog {
     /// Actions whose two levels are part of the action itself, so the editor
     /// shows them locked rather than offering to split them.
     ///
-    /// `window_switch` is deliberately NOT here. Its second level needed an
-    /// overlay window the shipped runtime cannot build (the bundled Python has
-    /// tkinter excluded and nothing ever calls `set_tk_root`), so the card used
-    /// to promise "长按 → 选择窗口" for a long press that did nothing at all --
-    /// not even the buzz every other long press gives you.
+    /// `window_switch` is deliberately NOT here: it has one level. Its long
+    /// press used to open a tkinter overlay the native app never had a root
+    /// for, so the card promised "长按 → 选择窗口" for a press that did nothing
+    /// at all -- not even the buzz every other long press gives you. The
+    /// overlay is gone; the runtime cycles on release, however long the hold.
     static let twoLevelActions: Set<String> = ["app_switch_mode"]
 
     /// action identifier → what it is called everywhere it appears.
@@ -38,11 +38,10 @@ enum ActionCatalog {
     /// by hand but not offered here simply keeps working and is preserved
     /// byte-for-byte when its button is opened.
     ///
-    /// `window_switch` is not offered: besides the dead second level above, its
-    /// first level cycles one hard-coded app's windows (`WindowCycler`'s
-    /// default) and nothing in the UI can change which. Offering a button
-    /// labelled 聚焦窗口 that only ever reaches VS Code is worse than not
-    /// offering it.
+    /// `window_switch` is not offered: it cycles one hard-coded app's windows
+    /// (`WindowCycler`'s default) and nothing in the UI can change which.
+    /// Offering a button labelled 聚焦窗口 that only ever reaches VS Code is
+    /// worse than not offering it.
     static let editableActions: [String] = ["focus_input", "app_switch_mode"]
 
     static func name(of action: String?) -> String {

@@ -73,7 +73,6 @@ runtime_build_script = read("scripts", "build-python-runtime.sh")
 key_mapper_src = read("src", "key_mapper.py")
 main_src = read("src", "main.py")
 window_switcher_src = read("src", "window_switcher.py")
-runtime_src = read("src", "runtime.py")
 readme = read("README.md")
 changelog = read("CHANGELOG.md")
 
@@ -536,14 +535,18 @@ check("completion: @escaping (String?) -> Void" in app_model,
       "a failed mapping save no longer reports back to the sheet",
       "the root alert cannot appear over an open sheet, so it looked like nothing happened")
 
-# window_switch promises a second level the shipped runtime cannot deliver.
-check("set_tk_root" not in runtime_src,
-      "something calls set_tk_root now; re-check whether window_switch's 长按 works")
-if "--exclude-module tkinter" in runtime_build_script and "set_tk_root" not in runtime_src:
-    check('"window_switch"' not in re.search(r"editableActions: \[String\] = \[([^\]]*)\]", action_catalog).group(1),
-          "聚焦窗口 is offered in the editor again, but its 长按 still cannot happen")
-    check('"选择窗口"' not in mapping_config,
-          "the card promises 长按 → 选择窗口 again for a long press that does nothing")
+# The bundled runtime is built without tkinter, so nothing it ships may need
+# it. The window-picker overlay did, and so never once opened.
+if "--exclude-module tkinter" in runtime_build_script:
+    _tk = [path.name for path in (ROOT / "src").glob("*.py")
+           if re.search(r"^\s*(import tkinter|from tkinter)", path.read_text(encoding="utf-8"), re.M)]
+    check(not _tk, "the runtime imports tkinter, which the bundled Python leaves out", f"{_tk}")
+
+# window_switch has one level: it cycles on release. Nothing may promise a 长按.
+check('"window_switch"' not in re.search(r"editableActions: \[String\] = \[([^\]]*)\]", action_catalog).group(1),
+      "聚焦窗口 is offered in the editor again, but it only ever cycles VS Code's windows")
+check('"选择窗口"' not in mapping_config,
+      "the card promises 长按 → 选择窗口 again for a long press that does nothing")
 
 # Colour literals live in one file. Six in DesignSystem (four status colours
 # plus the two key-cap tones); anywhere else means a second palette starting.

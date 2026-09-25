@@ -111,7 +111,7 @@ def _describe_mapping(mapping: dict, config: dict, default_threshold: float) -> 
 _BUILT_IN_SUMMARIES = {
     "app_switch_mode": "short=cmd+tab, long=locked switcher",
     "window_switch": "cycle the configured app's windows",
-    "window_picker": "open the window picker",
+    "window_picker": "does nothing (the picker was removed)",
     "focus_input": "move the caret into the frontmost window's text input",
     "screenshot": "short=capture+paste, long=capture",
     "disabled": "(not set)",

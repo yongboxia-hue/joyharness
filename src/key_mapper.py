@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import time
 import logging
-import importlib
 import subprocess
 import sys
 import threading
@@ -35,11 +34,7 @@ from .constants import (
     get_button_indices,
     get_button_names,
 )
-from .window_switcher import (
-    WindowCycler,
-    get_foreground_process_name,
-    find_windows,
-)
+from .window_switcher import WindowCycler, get_foreground_process_name
 
 logger = logging.getLogger(__name__)
 
@@ -135,17 +130,8 @@ class KeyMapper:
         # Window cycler for VS Code window switching
         self._window_cycler = WindowCycler()
 
-        # Window switch overlay and state (tkinter root set later via set_tk_root)
-        self._switcher_overlay = None
-        self._ws_held: bool = False
-        self._ws_button_index: int = -1  # tracks which button triggered window_switch
-        self._ws_press_time: float = 0.0
-        self._ws_overlay_active: bool = False
-        self._ws_last_move: float = 0.0
-        self._ws_move_interval: float = config.get("switch_scroll_interval", 400) / 1000.0
-
-        # Persistent Joy-Con window picker. Opened by SL/SR raw HID buttons.
-        self._picker_active: bool = False
+        # The button whose window_switch press is waiting for its release.
+        self._ws_button = None
 
         # Locked macOS app switcher. Y short press is Cmd+Tab; Y long press
         # keeps Cmd held so the stick can navigate before confirmation.
@@ -163,67 +149,6 @@ class KeyMapper:
             self._long_threshold,
             self._double_tap_timeout,
         )
-
-    def _on_overlay_select(self, window_info: "WindowInfo") -> None:
-        """Callback when overlay selection is confirmed."""
-        from .window_switcher import switch_to_window
-        switch_to_window(window_info)
-
-    def _confirm_picker(self) -> None:
-        if not self._picker_active or not self._switcher_overlay:
-            return
-        selected = self._switcher_overlay.selected
-        self._switcher_overlay.hide()
-        self._picker_active = False
-        if selected:
-            logger.info("window_picker selected: %s", selected.title)
-            self._on_overlay_select(selected)
-
-    def _cancel_picker(self) -> None:
-        if not self._picker_active or not self._switcher_overlay:
-            return
-        self._switcher_overlay.hide()
-        self._picker_active = False
-        logger.info("window_picker cancelled")
-
-    def _open_window_picker(self, scope: str, btn_name: str) -> None:
-        if self._switcher_overlay is None:
-            logger.warning("window_picker [%s] skipped: overlay is not ready", btn_name)
-            return
-
-        all_windows = find_windows(None)
-        if scope == "app":
-            foreground = get_foreground_process_name()
-            windows = [w for w in all_windows if w.app_name.lower() == foreground]
-            title = "当前 App 窗口"
-        else:
-            windows = all_windows
-            title = "所有窗口"
-
-        if not windows:
-            logger.warning("window_picker [%s] found no windows (scope=%s)", btn_name, scope)
-            return
-
-        initial = self._find_current_window_index(windows)
-        self._switcher_overlay.show(windows, initial_index=initial, title=title)
-        self._picker_active = True
-        logger.info("window_picker [%s] opened: %d windows (scope=%s)", btn_name, len(windows), scope)
-
-    def set_tk_root(self, root: "tk.Tk") -> None:
-        """Set the tkinter root for overlay creation. Call from main thread."""
-        import tkinter as tk
-        SwitcherOverlay = importlib.import_module("src.switcher_overlay").SwitcherOverlay
-
-        if isinstance(root, tk.Tk) and self._switcher_overlay is None:
-            self._switcher_overlay = SwitcherOverlay(root, on_select=self._on_overlay_select)
-
-    def _find_current_window_index(self, windows: list["WindowInfo"]) -> int:
-        """Find the index of the current foreground window in the list."""
-        fg_name = get_foreground_process_name()
-        for i, w in enumerate(windows):
-            if w.app_name.lower() == fg_name:
-                return i
-        return 0
 
     def button_down(self, button_index: int) -> None:
         """Handle a button press event."""
@@ -258,13 +183,6 @@ class KeyMapper:
                 self._exit_app_switch_mode(confirm=False)
             return
 
-        if self._picker_active:
-            if btn_name == "A":
-                self._confirm_picker()
-            elif btn_name in ("B", "X"):
-                self._cancel_picker()
-            return
-
         action = mapping["action"]
         logger.debug("button [%s] action: %s", btn_name, action)
         if action == "disabled":
@@ -279,11 +197,10 @@ class KeyMapper:
             logger.debug("focus_input [%s]", btn_name)
 
         elif action == "window_switch":
-            # Record press time and button index, decide short vs long in poll/button_up
-            self._ws_held = True
-            self._ws_button_index = button_index
-            self._ws_press_time = time.monotonic()
-            self._ws_overlay_active = False
+            # Cycles on release, however long the press. Holding it once
+            # opened an overlay to pick from; that overlay was tkinter and
+            # the native app never had a tkinter root to give it.
+            self._ws_button = button_index
             logger.debug("window_switch DOWN [%s] (waiting)", btn_name)
 
         elif action == "app_switch_mode":
@@ -313,7 +230,9 @@ class KeyMapper:
             logger.debug("screenshot DOWN [%s]", btn_name)
 
         elif action == "window_picker":
-            self._open_window_picker(mapping.get("scope", "all"), btn_name)
+            # The picker was that same tkinter overlay, so it never opened in
+            # the native app. Still a valid action so a config naming it loads.
+            logger.warning("window_picker [%s] does nothing: the window picker was removed", btn_name)
 
         elif action == "macro":
             self._execute_macro(mapping, btn_name)
@@ -387,25 +306,13 @@ class KeyMapper:
             self._end_passthrough(button_index, btn_name)
 
         # Handle window_switch release — only if this is the button that started it
-        if self._ws_held and button_index == self._ws_button_index:
-            self._ws_held = False
-            self._ws_button_index = -1
-
-            if self._ws_overlay_active and self._switcher_overlay:
-                # Long press: select the highlighted window and hide overlay
-                selected = self._switcher_overlay.selected
-                self._switcher_overlay.hide()
-                self._ws_overlay_active = False
-                if selected:
-                    self._on_overlay_select(selected)
-                    logger.info("window_switch UP [%s] → selected: %s", btn_name, selected.title)
+        if self._ws_button is not None and button_index == self._ws_button:
+            self._ws_button = None
+            target = self._window_cycler.next()
+            if target:
+                logger.info("window_switch UP [%s] → %s", btn_name, target.title)
             else:
-                # Short press: immediate switch to next
-                target = self._window_cycler.next()
-                if target:
-                    logger.info("window_switch UP [%s] → quick: %s", btn_name, target.title)
-                else:
-                    logger.warning("window_switch UP [%s] → no windows found", btn_name)
+                logger.warning("window_switch UP [%s] → no windows found", btn_name)
 
     def poll(self) -> None:
         """Call every polling cycle to handle auto-action long press activation.
@@ -490,19 +397,6 @@ class KeyMapper:
 
         # Stick auto-actions: already activated immediately in stick_direction(), no pending check needed
 
-        # Sequence repeat (e.g., Alt held + Tab every N ms)
-        # Window switch: long press → show overlay; stick_direction selects.
-        if self._ws_held and not self._ws_overlay_active and self._switcher_overlay:
-            if now - self._ws_press_time >= self._long_threshold:
-                windows = find_windows(self._window_cycler.app_names)
-                if windows:
-                    initial = self._find_current_window_index(windows)
-                    self._switcher_overlay.show(windows, initial_index=initial)
-                    self._ws_overlay_active = True
-                    self._buzz()
-                    self._ws_last_move = now
-                    logger.info("window_switch overlay: %d windows", len(windows))
-
     def _release_stick_auto(self) -> None:
         """Let go of whichever direction the stick was holding."""
         for token in [k for k in self._passthrough if isinstance(k, tuple) and k[0] == "stick"]:
@@ -524,28 +418,6 @@ class KeyMapper:
                 self._app_switch_step(reverse=True)
             elif direction in ("up", "down"):
                 logger.debug("app_switch_mode stick %s ignored", direction)
-            return
-
-        if self._picker_active and self._switcher_overlay:
-            if direction in ("down", "right", "down-right", "up-right"):
-                selected = self._switcher_overlay.move_next()
-                if selected:
-                    logger.debug("window_picker move next → %s", selected.title)
-            elif direction in ("up", "left", "up-left", "down-left"):
-                selected = self._switcher_overlay.move_previous()
-                if selected:
-                    logger.debug("window_picker move previous → %s", selected.title)
-            return
-
-        if self._ws_held and self._ws_overlay_active and self._switcher_overlay:
-            if direction in ("down", "right", "down-right", "up-right"):
-                selected = self._switcher_overlay.move_next()
-                if selected:
-                    logger.debug("window_switch overlay move next → %s", selected.title)
-            elif direction in ("up", "left", "up-left", "down-left"):
-                selected = self._switcher_overlay.move_previous()
-                if selected:
-                    logger.debug("window_switch overlay move previous → %s", selected.title)
             return
 
         if not self._stick_enabled:
@@ -669,13 +541,7 @@ class KeyMapper:
             self._release_all_locked()
 
     def _release_all_locked(self) -> None:
-        # Hide overlay if active
-        self._ws_held = False
-        self._ws_button_index = -1
-        self._ws_overlay_active = False
-        self._picker_active = False
-        if self._switcher_overlay:
-            self._switcher_overlay.hide()
+        self._ws_button = None
         self._exit_app_switch_mode(confirm=False)
         # Release sequences in reverse
         for token in list(self._passthrough):
