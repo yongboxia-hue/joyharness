@@ -16,7 +16,11 @@ struct MappingView: View {
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
-                    .frame(width: 176)
+                    // At least the width the Chinese labels were laid out for,
+                    // and wider when the labels need it: "Right Joy-Con" at a
+                    // fixed 176 ran past the page's right margin.
+                    .frame(minWidth: 176)
+                    .fixedSize()
                 )
             )
             .padding(.horizontal, 30).padding(.top, 24).padding(.bottom, 10)

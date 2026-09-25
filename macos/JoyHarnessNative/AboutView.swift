@@ -97,12 +97,11 @@ struct AboutView: View {
                 // full text ships in Resources/LICENSE; this line is where a
                 // person would look for it.
                 HStack(spacing: 0) {
-                    Text(String(localized: "基于开源项目 "))
+                    Text(String(localized: "基于开源项目 ")).foregroundStyle(JoyTheme.detail)
                     Link("VaderCheng/JoyHarness", destination: URL(string: "https://github.com/VaderCheng/JoyHarness")!)
-                    Text(String(localized: "，MIT 许可。"))
+                    Text(String(localized: "，MIT 许可。")).foregroundStyle(JoyTheme.detail)
                 }
                 .font(.system(size: 12))
-                .foregroundStyle(JoyTheme.detail)
                 .padding(.horizontal, 4)
 
                 if state.buildFlavor == "preview" {
