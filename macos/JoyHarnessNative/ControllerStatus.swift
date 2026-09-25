@@ -60,32 +60,46 @@ enum ControllerStatusParser {
 }
 
 
-/// What a walkthrough key step teaches. The order here is the order taught:
-/// put the cursor in the box, say something, paste in what you already have,
-/// fix it, send it.
+/// What a walkthrough key step teaches.
 enum OnboardingLesson: String, CaseIterable, Sendable {
-    case focus, voice, paste, delete, send
+    case focus, voice, send, paste, trim, newline
+}
+
+/// How the key has to be pressed for the step to count.
+enum OnboardingGesture: Sendable {
+    /// Under the long-press threshold -- A held is a new line, not a send.
+    case tap
+    /// Past the threshold: the long press, or the repeat of a held key.
+    case hold
+    /// Either. Voice tools differ: some want fn held, some toggle on a tap.
+    case either
 }
 
 /// One walkthrough key step, derived from the installed mappings.
+///
+/// Steps repeat lessons -- the practice speaks and sends twice -- so a step
+/// has its own id rather than borrowing its lesson's name.
 struct OnboardingCheck: Identifiable, Equatable {
+    let id: String
     let lesson: OnboardingLesson
+    let gesture: OnboardingGesture
+    /// 1 for the first exchange (focus, speak, send), 2 for the editing one.
+    let round: Int
     /// The mapping's button name, as the runtime reports it in input events.
     let button: String
     /// What is printed on the controller ("ZR", "−", "→"), from the card.
     let key: String
     /// Where that key sits on the controller drawing.
     let hotspotKey: String
-    /// The shortcut a tap sends, rendered from the config.
+    /// The shortcut this gesture sends, rendered from the config.
     let shortcut: String
-    /// The button also has a long press, so only a tap counts.
-    let tapOnly: Bool
-
-    /// The progress key this check records when it happens.
-    var id: String { lesson.rawValue }
+    /// The button does something else when held, so a tap must stay short.
+    let splitsOnHold: Bool
 }
 
 struct OnboardingPressFlash: Equatable {
     let button: String
     let count: Int
+    /// Released after the long-press threshold: a hold, not a tap.
+    var held = false
 }

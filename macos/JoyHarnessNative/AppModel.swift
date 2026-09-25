@@ -708,24 +708,41 @@ final class AppState: ObservableObject {
         let trigger = side == .left ? "ZL" : "ZR"
         let modifier = side == .left ? "Minus" : "Plus"
 
-        func check(_ lesson: OnboardingLesson, _ button: String) -> OnboardingCheck? {
+        func check(
+            _ id: String, _ lesson: OnboardingLesson, _ button: String,
+            _ gesture: OnboardingGesture, round: Int
+        ) -> OnboardingCheck? {
             guard let card = cards.first(where: { $0.id == button }) else { return nil }
-            // The tap is what is taught. Matched by slot id, not by the
-            // gesture's label, which is display text and gets translated.
-            let row = card.rows.first(where: { $0.id == "single" }) ?? card.rows.first
+            // Matched by slot id, not by the gesture's label, which is display
+            // text and gets translated. A hold is the "long" slot of a split
+            // button, or simply the key held down on a plain one (⌫ repeats);
+            // a split button without a long slot has no hold to teach.
+            let splits = card.rows.count > 1
+            let row: MappingRow?
+            switch gesture {
+            case .hold: row = splits ? card.rows.first(where: { $0.id == "long" }) : card.rows.first
+            case .tap, .either: row = card.rows.first(where: { $0.id == "single" }) ?? card.rows.first
+            }
             guard let row, row.isSet else { return nil }
             return OnboardingCheck(
-                lesson: lesson, button: button, key: card.key, hotspotKey: card.hotspotKey,
-                shortcut: row.value, tapOnly: card.rows.count > 1
+                id: id, lesson: lesson, gesture: gesture, round: round,
+                button: button, key: card.key, hotspotKey: card.hotspotKey,
+                shortcut: row.value, splitsOnHold: splits
             )
         }
 
+        // Two exchanges. The first is the three presses the product is for;
+        // the second answers the reply with everything you do to a message
+        // before it goes: paste, cut the tail off, new line, one more line.
         return [
-            check(.focus, "X"),
-            check(.voice, trigger),
-            check(.paste, modifier),
-            check(.delete, "B"),
-            check(.send, "A")
+            check("focus", .focus, "X", .tap, round: 1),
+            check("voice", .voice, trigger, .either, round: 1),
+            check("send", .send, "A", .tap, round: 1),
+            check("paste", .paste, modifier, .tap, round: 2),
+            check("trim", .trim, "B", .hold, round: 2),
+            check("newline", .newline, "A", .hold, round: 2),
+            check("voice-again", .voice, trigger, .either, round: 2),
+            check("send-again", .send, "A", .tap, round: 2)
         ].compactMap { $0 }
     }
 
@@ -772,17 +789,25 @@ final class AppState: ObservableObject {
             }
             guard event.phase == "up" else { continue }
             pressed.remove(event.button)
+            let startedAt = onboardingPressTimes.removeValue(forKey: event.button)
             onboardingPressFlash = OnboardingPressFlash(
-                button: event.button, count: onboardingPressFlash.count + 1
+                button: event.button, count: onboardingPressFlash.count + 1,
+                held: startedAt.map { event.timestamp - $0 >= longPressThreshold } ?? false
             )
-            guard let startedAt = onboardingPressTimes.removeValue(forKey: event.button),
-                  event.button == check.button else { continue }
-            // A button that also has a long press only counts a tap: holding
-            // A is a new line, not a send, and the step says "press".
-            // The threshold comes from the config the runtime splits on, so
-            // what counts here and what actually fired are one fact.
+            guard let startedAt, event.button == check.button else { continue }
+            // A tap on a button that also has a long press must stay short:
+            // holding A is a new line, not a send. A hold must get past the
+            // threshold. The threshold comes from the config the runtime
+            // splits on, so what counts here and what actually fired are one
+            // fact.
             let duration = max(0, event.timestamp - startedAt)
-            if !check.tapOnly || duration < longPressThreshold {
+            let counts: Bool
+            switch check.gesture {
+            case .tap: counts = !check.splitsOnHold || duration < longPressThreshold
+            case .hold: counts = duration >= longPressThreshold
+            case .either: counts = true
+            }
+            if counts {
                 onboardingWorkflowProgress.insert(check.id)
             }
         }

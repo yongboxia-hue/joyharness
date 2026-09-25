@@ -223,29 +223,15 @@
 "左 Joy-Con 已连接" = "Left Joy-Con connected";
 "右 Joy-Con 已连接" = "Right Joy-Con connected";
 "等待 Joy-Con 连接" = "Waiting for a Joy-Con";
-"先，" = "First, ";
-"把光标放进输入框" = "put the cursor in the box";
-"然后，" = "Then, ";
-"说句话" = "say something";
-"说错了，" = "Got it wrong? ";
-"删一个字" = "Delete a character";
-"最后，" = "Finally, ";
-"发出去" = "send it";
-"按一下" = "Press";
-"发出" = "for";
 "JoyHarness 现在没在运行。" = "JoyHarness isn't running.";
 "要先授权。" = "Grant permission first.";
 "要先连上一只手柄。" = "Connect a Joy-Con first.";
 "练习用，不会发给任何人" = "Practice only. Nothing is sent anywhere.";
 "按一下 %@，光标就会来这里" = "Press %@ and the cursor lands here";
-"按一下 %@，开始说话…" = "Press %@ and start talking…";
 "光标到位" = "Cursor's in";
 "收到了" = "Got it";
 "删掉了" = "Deleted";
 "发出去了" = "Sent";
-"等你按 %@" = "Waiting for %@";
-"按一下 %@，删掉最后一个字" = "Press %@ to delete the last character";
-"按一下 %@，把它发出去" = "Press %@ to send it";
 "系统设置 › 隐私与安全性 › 辅助功能" = "System Settings › Privacy & Security › Accessibility";
 
 /* RootView.swift */
@@ -302,24 +288,12 @@
 
 
 /* Added with the one-page practice, the paste step and the language setting */
-"试一试" = "Try it";
-"照着念：" = "Read this out:";
 "明天下午三点，在三楼会议室。" = "Tomorrow at 3pm, in the third-floor meeting room.";
 "明天几点开会？" = "What time is the meeting tomorrow?";
-"好，三楼见。" = "Great, see you on the third floor.";
-"说的话由你自己选的语音输入法转成文字：先在它里面把启动快捷键设成 fn，Typeless、豆包都行，换成别的也可以。按住说还是按一下开关，看它怎么设。" = "Your own voice tool turns speech into text: set its start shortcut to fn first. Typeless works, and so does any other. Whether you hold ZR or tap it on and off depends on how that tool is set up.";
-"%@ 已发出。没看到字，就去输入法里查一下快捷键" = "%@ sent. No text? Check the shortcut in your voice tool";
-"有现成的，" = "Already have it? ";
-"直接贴上" = "Paste it in";
-"剪贴板里已经放好一句：" = "This is on your clipboard now:";
-"在电梯右手边。" = " It's to the right of the elevator.";
-"你原来复制的内容，这一步结束后会放回去。" = "Whatever you had copied goes back when this step ends.";
-"按一下 %@，把剪贴板里的这句贴进来" = "Press %@ to paste it in";
 "贴上了" = "Pasted";
 "跳过这一步" = "Skip This Step";
 "说话，" = "Talk, ";
 "不用打字" = "don't type";
-"开始说话" = "Start talking";
 "开始使用" = "Get Started";
 "每个键都能在「按键」页改。" = "Every button can be changed on the Buttons page.";
 "语言" = "Language";
@@ -327,3 +301,30 @@
 "重新打开 JoyHarness 后生效。" = "Takes effect when JoyHarness reopens.";
 "默认跟随系统语言。" = "Follows the system language by default.";
 "发送" = "Send";
+
+
+/* Two-round practice */
+"第一轮" = "Round 1";
+"第二轮" = "Round 2";
+"按一下，把光标放进来" = "Press to put the cursor here";
+"先在你的语音输入法里，把启动快捷键设成" = "First, set your voice tool's start shortcut to";
+"没出字？看看启动快捷键是不是 %@；有的输入法要按住 %@ 说话。" = "No text? Check that the start shortcut is %1$@. Some tools want %2$@ held while you talk.";
+"按一下，发出去" = "Press to send it";
+"好。会议室在哪？地址发我一下。" = "OK. Where's the room? Send me the address.";
+"按一下，把剪贴板里的地址贴进来" = "Press to paste the address from your clipboard";
+"剪贴板里已经放好了这段地址。你原来复制的内容，这一步结束后会放回去。" = "The address is on your clipboard now. Whatever you had copied goes back when this step ends.";
+"三楼 305，出电梯右手边。（摘自行政通知）" = "Room 305, third floor, right out of the elevator. (from the office notice)";
+"三楼 305，出电梯右手边。" = "Room 305, third floor, right out of the elevator.";
+"按住连着删，删掉括号那一截" = "Hold to keep deleting. Remove the part in brackets";
+"删到句号就松手。" = "Let go at the full stop.";
+"按住换行，手柄震一下就松手" = "Hold for a new line. Let go when it buzzes";
+"换好行了" = "New line";
+"我先过去等你。" = "I'll head over and wait for you.";
+"好，一会儿见。" = "Great, see you soon.";
+"删除，按住连着删" = "Delete; hold to keep deleting";
+"发送，按住换行" = "Send; hold for a new line";
+"按一下开始说，照着念：" = "Press once to start, then read this out:";
+"在听了。念完再按一下，结束说话" = "Listening. Press again when you're done";
+"正在转成文字…" = "Turning it into text…";
+"说的话会出现在这里" = "What you say appears here";
+"说话：按一下开始，再按一下结束" = "Talk: press to start, press again to stop";

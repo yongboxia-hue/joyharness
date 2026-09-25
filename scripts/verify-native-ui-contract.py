@@ -359,8 +359,9 @@ require(onboarding_view, "state.leftController.connected || state.rightControlle
 # Two boundaries the walkthrough has to state, asserted by meaning rather
 # than by one literal sentence -- the wording is allowed to improve.
 #
-# 1. Speech recognition is not part of this product.
-check(any(t in onboarding_view for t in ("语音识别由你", "不含这一段", "由你自己选")),
+# 1. Speech recognition is not part of this product: the walkthrough sends
+#    the user to *their* voice tool, not to one of ours.
+check(any(t in onboarding_view for t in ("语音识别由你", "不含这一段", "由你自己选", "你的语音输入法")),
       "the walkthrough no longer says speech recognition is someone else's job")
 # 2. fn is the voice-input trigger, and it only does something once the
 #    user's own tool is listening for it. Without this, a first press of ZR
@@ -368,8 +369,13 @@ check(any(t in onboarding_view for t in ("语音识别由你", "不含这一段"
 #    what it looks like when it is working correctly.
 check("fn" in onboarding_view and "启动快捷键设成" in onboarding_view,
       "the walkthrough no longer tells the user to bind fn in their voice tool")
-# 3. A brand may be recommended, never required.
-check("换成别的也可以" in onboarding_view or "都行" in onboarding_view,
+# 3. A brand may be recommended, never required: name one only alongside
+#    "any other works too".
+#    Comments are left out: they credit Typeless for ideas, which is not
+#    telling the user to install it.
+onboarding_code = "\n".join(line for line in onboarding_view.splitlines()
+                            if not line.strip().startswith("//"))
+check("Typeless" not in onboarding_code or "换成别的也可以" in onboarding_code,
       "the walkthrough presents a specific voice tool as mandatory")
 require(app_model, "processOnboardingInputEvents", "runtime input event monitoring")
 require(mapping_editor, "ShortcutRecorderControl", "keyboard shortcut recording control")
