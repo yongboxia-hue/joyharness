@@ -8,10 +8,10 @@ struct MappingView: View {
     var body: some View {
         VStack(spacing: 0) {
             PageTitle(
-                "按键",
-                subtitle: "点任意一个按键，改它发出的快捷键。",
+                String(localized: "按键"),
+                subtitle: String(localized: "点任意一个按键，改它发出的快捷键。"),
                 trailing: AnyView(
-                    Picker("手柄", selection: $state.mappingSide) {
+                    Picker(String(localized: "手柄"), selection: $state.mappingSide) {
                         ForEach(ControllerSide.allCases) { Text($0.title).tag($0) }
                     }
                     .pickerStyle(.segmented)
@@ -40,9 +40,9 @@ struct MappingView: View {
     private var permissionNotice: some View {
         HStack(spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(JoyTheme.orange)
-            Text("还没授权，改了也暂时不生效。").font(.system(size: 12))
+            Text(String(localized: "还没授权，改了也暂时不生效。")).font(.system(size: 12))
             Spacer()
-            Button("前往设置") { state.selectedPage = .settings }.buttonStyle(SecondaryButtonStyle())
+            Button(String(localized: "前往设置")) { state.selectedPage = .settings }.buttonStyle(SecondaryButtonStyle())
         }
         .padding(.horizontal, 12)
         .frame(height: 42)
@@ -55,7 +55,7 @@ struct MappingView: View {
         HStack {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
             Text(error); Spacer()
-            Button("重新读取") { state.reloadMappingConfiguration() }.buttonStyle(SecondaryButtonStyle())
+            Button(String(localized: "重新读取")) { state.reloadMappingConfiguration() }.buttonStyle(SecondaryButtonStyle())
         }
         .font(.system(size: 12)).padding(.horizontal, 30).padding(.bottom, 12)
     }
@@ -236,7 +236,7 @@ struct MappingView: View {
             state.beginEditing(side: side, button: card.id, displayKey: card.key)
         } label: {
             HStack(spacing: 10) {
-                ButtonGlyph(button: card.key).frame(width: 30, height: 30)
+                ButtonGlyph(button: card.hotspotKey).frame(width: 30, height: 30)
                 VStack(alignment: .leading, spacing: 2) {
                     ForEach(card.rows) { row in
                         mappingLine(row.gesture, row.value, isOnly: card.rows.count == 1)
@@ -256,7 +256,7 @@ struct MappingView: View {
         }
         .buttonStyle(.plain)
         .onHover { hoveredID = $0 ? card.id : nil }
-        .accessibilityLabel("\(card.key) 按键配置")
+        .accessibilityLabel(String(localized: "\(card.key) 按键配置"))
         .accessibilityValue(card.rows.map(\.value).joined(separator: " / "))
         .accessibilityIdentifier("mapping-card-\(side.rawValue)-\(card.id)")
     }
@@ -265,7 +265,7 @@ struct MappingView: View {
     /// label -- and the value gets the larger type, because on that card it
     /// *is* the content rather than one of several alternatives.
     private func mappingLine(_ gesture: String?, _ action: String, isOnly: Bool) -> some View {
-        let unset = action == "未设置"
+        let unset = action == String(localized: "未设置")
         return HStack(spacing: 8) {
             if let gesture {
                 Text(gesture)
@@ -290,7 +290,7 @@ struct MappingView: View {
                     .frame(width: 8, height: 8)
                 Text(selectedControllerStatus.statusText).font(.system(size: 11, weight: .semibold))
                 if let level = selectedControllerStatus.batteryLevel {
-                    Text(selectedControllerStatus.charging ? "· 电量 \(level)/4 · 充电中" : "· 电量 \(level)/4")
+                    Text(selectedControllerStatus.charging ? String(localized: "· 电量 \(level)/4 · 充电中") : String(localized: "· 电量 \(level)/4"))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
@@ -309,7 +309,7 @@ struct MappingView: View {
                     .position(x: 155, y: 267)
             }
 
-            Text(side == .left ? "左手柄" : "右手柄")
+            Text(side == .left ? String(localized: "左手柄") : String(localized: "右手柄"))
                 .font(.system(size: 11))
                 .foregroundStyle(JoyTheme.detail)
                 .position(x: 155, y: 493)

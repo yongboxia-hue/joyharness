@@ -18,9 +18,9 @@ struct SettingsView: View {
     @ViewBuilder
     private var accessibilityAction: some View {
         if state.accessibilityGranted {
-            StatusPill(text: "已授权", color: JoyTheme.green)
+            StatusPill(text: String(localized: "已授权"), color: JoyTheme.green)
         } else {
-            Button("前往授权") { state.requestAccessibility() }
+            Button(String(localized: "前往授权")) { state.requestAccessibility() }
                 .buttonStyle(SecondaryButtonStyle())
         }
     }
@@ -28,32 +28,32 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                PageTitle("设置", subtitle: "授权、启动方式、外观，以及手柄和更新的行为。")
+                PageTitle(String(localized: "设置"), subtitle: String(localized: "授权、启动方式、外观，以及手柄和更新的行为。"))
 
-                JoySectionHeader("权限")
+                JoySectionHeader(String(localized: "权限"))
 
                 JoyCard {
                     InfoRow(
                         symbol: "keyboard.badge.ellipsis",
-                        title: "辅助功能授权",
+                        title: String(localized: "辅助功能授权"),
                         // Not "已授权。" -- the pill beside it already
                         // says that word. A row says one thing once.
                         detail: state.accessibilityGranted
-                            ? "JoyHarness 可以替你按键盘了。"
-                            : "授权之后，JoyHarness 才能替你按键盘。",
+                            ? String(localized: "JoyHarness 可以替你按键盘了。")
+                            : String(localized: "授权之后，JoyHarness 才能替你按键盘。"),
                         tint: state.accessibilityGranted ? JoyTheme.green : JoyTheme.orange,
                         trailing: AnyView(accessibilityAction)
                     )
                     .animation(JoyMotion.stateChange, value: state.accessibilityGranted)
                 }
 
-                JoySectionHeader("偏好")
+                JoySectionHeader(String(localized: "偏好"))
 
                 JoyCard {
                     VStack(spacing: 0) {
                         InfoRow(
                             symbol: "arrow.up.right.square",
-                            title: "登录时启动 JoyHarness",
+                            title: String(localized: "登录时启动 JoyHarness"),
                             detail: state.launchAtLoginDetail,
                             trailing: AnyView(
                                 // One control, and nothing beside it saying
@@ -64,10 +64,10 @@ struct SettingsView: View {
                                 // sitting next to a dead switch.
                                 HStack(spacing: 10) {
                                     if state.launchAtLoginRequiresApproval {
-                                        Button("前往确认") { state.openLoginItemsSettings() }
+                                        Button(String(localized: "前往确认")) { state.openLoginItemsSettings() }
                                             .buttonStyle(SecondaryButtonStyle())
                                     } else {
-                                        Toggle("登录时启动", isOn: Binding(
+                                        Toggle(String(localized: "登录时启动"), isOn: Binding(
                                             get: { state.launchAtLogin },
                                             set: { state.setLaunchAtLogin($0) }
                                         ))
@@ -82,10 +82,10 @@ struct SettingsView: View {
                         Divider().padding(.leading, 47).padding(.vertical, 12)
                         InfoRow(
                             symbol: "circle.lefthalf.filled",
-                            title: "外观",
-                            detail: "修改后立即生效。",
+                            title: String(localized: "外观"),
+                            detail: String(localized: "修改后立即生效。"),
                             trailing: AnyView(
-                                Picker("外观", selection: Binding(
+                                Picker(String(localized: "外观"), selection: Binding(
                                     get: { state.appearance },
                                     set: { state.setAppearance($0) }
                                 )) {
@@ -102,10 +102,10 @@ struct SettingsView: View {
                         Divider().padding(.leading, 47).padding(.vertical, 12)
                         InfoRow(
                             symbol: "moon.zzz",
-                            title: "手柄闲着的时候自动休眠",
+                            title: String(localized: "手柄闲着的时候自动休眠"),
                             detail: state.idleSleepEnabled
-                                ? "放着不用 \(Int(state.idleSleepMinutes)) 分钟就自己睡，按一下手柄就醒。"
-                                : "手柄一直连着会耗电。开启后放着不用它会自己睡，按一下就醒。",
+                                ? String(localized: "放着不用 \(Int(state.idleSleepMinutes)) 分钟就自己睡，按一下手柄就醒。")
+                                : String(localized: "手柄一直连着会耗电。开启后放着不用它会自己睡，按一下就醒。"),
                             tint: .secondary,
                             trailing: AnyView(
                                 Toggle("", isOn: Binding(
@@ -121,14 +121,14 @@ struct SettingsView: View {
                         Divider().padding(.leading, 47).padding(.vertical, 12)
                         InfoRow(
                             symbol: "arrow.down.circle",
-                            title: "自动检查更新",
+                            title: String(localized: "自动检查更新"),
                             detail: updater.automaticallyChecks
-                                ? "每天检查一次。发现新版本会先问你，不会自己装。"
-                                : "关闭后不会再检查，需要你自己留意新版本。",
+                                ? String(localized: "每天检查一次。发现新版本会先问你，不会自己装。")
+                                : String(localized: "关闭后不会再检查，需要你自己留意新版本。"),
                             tint: .secondary,
                             trailing: AnyView(
                                 HStack(spacing: 10) {
-                                    Button("检查") { updater.checkForUpdates() }
+                                    Button(String(localized: "检查")) { updater.checkForUpdates() }
                                         .buttonStyle(SecondaryButtonStyle())
                                         .accessibilityIdentifier("check-updates-now")
                                     Toggle("", isOn: $updater.automaticallyChecks)

@@ -1,0 +1,2 @@
+/* 系统请求蓝牙权限时显示。 */
+"NSBluetoothAlwaysUsageDescription" = "JoyHarness 需要连接 Joy-Con 以接收按键操作。";

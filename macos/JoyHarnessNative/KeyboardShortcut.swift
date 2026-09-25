@@ -189,9 +189,9 @@ enum ShortcutParseError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .empty: return "请输入一个快捷键"
-        case .unsupported(let key): return "不支持按键“\(key)”"
-        case .multipleRegularKeys: return "一个快捷键只能包含一个普通按键"
+        case .empty: return String(localized: "请输入一个快捷键")
+        case .unsupported(let key): return String(localized: "不支持按键“\(key)”")
+        case .multipleRegularKeys: return String(localized: "一个快捷键只能包含一个普通按键")
         }
     }
 }

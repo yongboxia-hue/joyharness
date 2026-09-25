@@ -144,6 +144,44 @@ for runtime_arch in $(joyharness_bundled_runtime_archs "$APP_PATH"); do
   fi
 done
 
+# Every string the interface can show must have an English line. The zh-Hans
+# table is written from the compiler's own key list, so it is the complete
+# list; compare the English one against it. A missing line would show Chinese
+# on an English Mac, a stale one means a string changed and its translation
+# did not, and a format that disagrees crashes or garbles when it is filled in.
+for localization in zh-Hans en; do
+  if ! plutil -extract CFBundleLocalizations xml1 -o - "$PLIST" | grep -q "<string>$localization</string>"; then
+    echo "Info.plist does not declare the $localization localization." >&2
+    exit 1
+  fi
+  for table in Localizable InfoPlist; do
+    if [ ! -f "$RESOURCES/$localization.lproj/$table.strings" ]; then
+      echo "Missing $localization.lproj/$table.strings" >&2
+      exit 1
+    fi
+  done
+done
+python3 - "$RESOURCES/zh-Hans.lproj/Localizable.strings" "$RESOURCES/en.lproj/Localizable.strings" <<'PY'
+import re, subprocess, sys, json
+def load(path):
+    return json.loads(subprocess.run(["plutil", "-convert", "json", "-o", "-", path],
+                                     check=True, capture_output=True).stdout)
+source, english = load(sys.argv[1]), load(sys.argv[2])
+chinese = re.compile(r"[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]")
+needed = {key for key in source if chinese.search(key)}
+missing = sorted(needed - set(english))
+stale = sorted(set(english) - set(source))
+def formats(text):
+    return sorted(re.sub(r"%\d\$", "%", f) for f in re.findall(r"%(?:\d\$)?(?:lld|ld|llu|d|@|lf|f)", text))
+mismatched = sorted(k for k in needed & set(english) if formats(k) != formats(english[k]))
+for label, keys in (("no English for", missing), ("English for a string that no longer exists", stale),
+                    ("format arguments differ", mismatched)):
+    for key in keys:
+        print(f"Localization: {label}: {key}", file=sys.stderr)
+if missing or stale or mismatched:
+    sys.exit(1)
+PY
+
 echo "SwiftUI app verification passed."
 echo "Architectures: $(joyharness_binary_archs "$APP_PATH" | tr '\n' ' ')"
 echo "App: $APP_PATH"

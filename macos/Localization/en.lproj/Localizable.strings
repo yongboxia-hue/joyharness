@@ -1,0 +1,305 @@
+/* English. Keys are the Chinese source text, exactly as the compiler
+   extracts them (scripts/build-swiftui-macos-app.sh writes the list to
+   build/localized-strings); verify-swiftui-macos-app.sh fails when one
+   is missing here. */
+
+/* AboutView.swift */
+"关于" = "About";
+"版本信息，以及出问题时的排查入口。" = "Version, and where to start when something goes wrong.";
+"出问题时" = "When something goes wrong";
+"这是 Preview 版。它的设置只属于自己，不会动到你正式装的那个 JoyHarness。" = "This is the Preview build. Its settings are its own and never touch the JoyHarness you have installed.";
+"把 Joy-Con 变成快捷键控制器" = "Turns a Joy-Con into a shortcut controller";
+"版本 %@ Preview" = "Version %@ Preview";
+"版本 %@" = "Version %@";
+"重启服务" = "Restart";
+"手柄按了没反应时，重启一次通常就好了。" = "If the controller stops responding, a restart usually fixes it.";
+"现在没在运行，按手柄不会有反应。" = "Not running right now, so the controller won't do anything.";
+"首次使用引导" = "Walkthrough";
+"从头走一遍：授权、连手柄、试按键。" = "Start over: permission, pairing, trying the keys.";
+"重新查看" = "Show Again";
+"运行诊断" = "Diagnostics";
+"在本机生成一份排查用的文件，不会上传到任何地方。" = "Saves a troubleshooting file on this Mac. Nothing is uploaded.";
+"处理中…" = "Working…";
+"重启" = "Restart";
+"正在导出…" = "Exporting…";
+"导出诊断包" = "Export";
+
+/* ActionCatalog.swift */
+"未设置" = "Not set";
+"切换应用" = "Switch app";
+"切换窗口" = "Switch window";
+"聚焦输入框" = "Focus input";
+"截图" = "Screenshot";
+"选择窗口" = "Pick window";
+"执行宏" = "Run macro";
+"运行命令" = "Run command";
+"语音输入" = "Voice input";
+"粘贴" = "Paste";
+"连续听写" = "Dictation";
+"修饰键" = "Modifier";
+"回车" = "Return";
+"换行" = "New line";
+"删除" = "Delete";
+"取消" = "Cancel";
+"聚焦搜索" = "Spotlight";
+"定位" = "Locate";
+"清除" = "Clear";
+"选应用" = "Pick app";
+"选窗口" = "Pick window";
+"定位光标" = "Cursor";
+"存成图片" = "Save image";
+"一串操作" = "Macro";
+"跑命令" = "Command";
+
+/* AppModel.swift */
+"连接" = "Connection";
+"按键" = "Buttons";
+"设置" = "Settings";
+"跟随系统" = "System";
+"浅色" = "Light";
+"深色" = "Dark";
+"JoyHarness 暂时没有在运行" = "JoyHarness isn't running";
+"还需要完成系统授权" = "Permission still needed";
+"还没有连上手柄" = "No controller connected";
+"按键响应已暂停" = "Paused";
+"已就绪" = "Ready";
+"服务异常" = "Not running";
+"需要授权" = "Needs permission";
+"未连接" = "Not connected";
+"已暂停" = "Paused";
+"手柄按了没反应。你的配置都还在。" = "The controller won't respond. Your settings are all still there.";
+"先在系统里授权，JoyHarness 才能替你按键盘。" = "Grant permission first, so JoyHarness can press keys for you.";
+"在系统蓝牙设置里连上任意一只手柄就能用。" = "Connect either Joy-Con in Bluetooth settings and you're set.";
+"手柄还连着，只是暂时不动作。" = "Still connected, just not doing anything for now.";
+"现在按手柄，Mac 就有反应。" = "Press a button and your Mac responds.";
+"未开启" = "Off";
+"登录 Mac 后自动启动，无需手动打开。" = "Starts when you log in, so you never have to open it.";
+"JoyHarness 读不到自己的状态。退出再打开一次，通常就好了。" = "JoyHarness can't read its own status. Quitting and reopening usually fixes it.";
+"已开启" = "On";
+"等待确认" = "Waiting for approval";
+"去「系统设置 → 通用 → 登录项」里允许 JoyHarness。" = "Allow JoyHarness in System Settings → General → Login Items.";
+"开启后，登录 Mac 时会自动启动 JoyHarness。" = "When on, JoyHarness starts when you log in.";
+"状态未知" = "Unknown";
+"读不到系统里的设置，稍后再试。" = "Couldn't read the system setting. Try again later.";
+"系统不支持" = "Not supported";
+"需要 macOS 13 或更高版本。" = "Requires macOS 13 or later.";
+"读不到当前的按键配置：%@" = "Couldn't read the current button setup: %@";
+"左右手柄都连上了" = "Both Joy-Cons connected";
+"左手柄已连接" = "Left Joy-Con connected";
+"右手柄已连接" = "Right Joy-Con connected";
+"没有找到手柄" = "No controller found";
+"休眠设置没保存上：%@" = "Couldn't save the sleep setting: %@";
+"没能切换：%@" = "Couldn't switch: %@";
+"JoyHarness 少了一个组件，可能是没装全。重新安装一次。" = "Part of JoyHarness is missing, probably from an incomplete install. Reinstall it.";
+"这一步没能开始：%@" = "Couldn't start: %@";
+"没能改成功：%@" = "Couldn't change it: %@";
+"导出 JoyHarness 诊断包" = "Export JoyHarness Diagnostics";
+"排查文件没能导出：%@" = "Couldn't export the troubleshooting file: %@";
+"打不开按键配置：%@" = "Couldn't open the button setup: %@";
+"没保存上：%@" = "Couldn't save: %@";
+"摇杆" = "Stick";
+"这一步没能完成，稍后再试。" = "That didn't work. Try again later.";
+
+/* ConfigStore.swift */
+"按键配置的格式不对。" = "The button setup file is malformed.";
+"按键配置里少了手柄那一部分。" = "The button setup is missing its controller section.";
+"按键配置里少了 %@ 那一部分。" = "The button setup is missing the %@ section.";
+"改动没有生效，原来的设置也没能恢复（%@ / %@）。备份在 config/backups 里。" = "The change didn't take, and the previous setup couldn't be restored (%1$@ / %2$@). There is a backup in config/backups.";
+
+/* ConnectionView.swift */
+"手柄连上了没有，常用按键现在发出什么。" = "Whether a controller is connected, and what the everyday buttons send.";
+"设备" = "Devices";
+"左手柄" = "Left Joy-Con";
+"右手柄" = "Right Joy-Con";
+"常用按键 · %@" = "Everyday buttons · %@";
+"全部配置" = "All buttons";
+"还没有配置任何按键。" = "No buttons set up yet.";
+"按键响应" = "Responding";
+"可以用了" = "Ready to go";
+"等待授权" = "Waiting for permission";
+"没有在运行" = "Not running";
+"还没连上手柄" = "No controller yet";
+"先去「设置」里授权。" = "Grant permission in Settings first.";
+"JoyHarness 没在运行。" = "JoyHarness isn't running.";
+"连上任意一只手柄就能用。" = "Connect either Joy-Con to start.";
+"继续响应" = "Resume";
+"暂停响应" = "Pause";
+"第一次配对要按住手柄侧面滑轨上的小圆钮，直到指示灯来回闪。" = " To pair for the first time, hold the small round button on the rail until the lights run back and forth.";
+"前往授权" = "Grant Permission";
+"打开蓝牙设置" = "Open Bluetooth Settings";
+"正在启动…" = "Starting…";
+"重新启动" = "Restart";
+"按一下手柄就醒" = "Press any button to wake it";
+"单击" = "Tap";
+"电量 %lld/4 · 充电中" = "Battery %lld/4 · charging";
+"电量 %lld/4" = "Battery %lld/4";
+"电量读取中" = "Reading battery";
+
+/* ControllerStatus.swift */
+"已连接" = "Connected";
+"已休眠" = "Asleep";
+
+/* DesignSystem.swift */
+"重新检测" = "Check again";
+
+/* JoyHarnessApp.swift */
+"关于 JoyHarness" = "About JoyHarness";
+"隐藏 JoyHarness" = "Hide JoyHarness";
+"退出 JoyHarness" = "Quit JoyHarness";
+"编辑" = "Edit";
+"撤销" = "Undo";
+"重做" = "Redo";
+"剪切" = "Cut";
+"拷贝" = "Copy";
+"全选" = "Select All";
+"窗口" = "Window";
+"最小化" = "Minimize";
+"缩放" = "Zoom";
+"关闭" = "Close";
+"JoyHarness 没能启动发送按键的部分：%@" = "JoyHarness couldn't start the part that sends keys: %@";
+
+/* KeyboardShortcut.swift */
+"请输入一个快捷键" = "Enter a shortcut";
+"不支持按键“%@”" = "The key “%@” isn't supported";
+"一个快捷键只能包含一个普通按键" = "A shortcut can have only one non-modifier key";
+
+/* MappingConfig.swift */
+"长按" = "Hold";
+"双击" = "Double tap";
+
+/* MappingEditor.swift */
+"内置动作，单击和长按不能分开设置。" = "A built-in action: tap and hold can't be set separately.";
+"加了双击之后，单击会延迟 0.35 秒才触发。" = "With a double tap added, a single tap waits 0.35 seconds before it fires.";
+"单击会在松手时触发。" = "A tap fires when you let go.";
+"配置 %@" = "Set up %@";
+"添加长按" = "Add Hold";
+"添加双击" = "Add Double Tap";
+"恢复推荐" = "Restore Default";
+"保存中…" = "Saving…";
+"保存" = "Save";
+"这是内置动作，请从上面的菜单选择" = "This is a built-in action. Choose it from the menu above.";
+"移除这个动作" = "Remove this action";
+"移除%@" = "Remove %@";
+"选择特殊按键或行为" = "Choose a special key or action";
+"清空" = "Clear";
+"清空%@" = "Clear %@";
+"改用录制" = "Record Instead";
+"手动输入" = "Type It In";
+"如 ⌘V 或 Command+V" = "e.g. ⌘V or Command+V";
+"%@快捷键手动输入" = "%@ shortcut, typed in";
+"点击后按下快捷键，Esc 取消" = "Click, then press the shortcut. Esc cancels.";
+"点击录制" = "Click to Record";
+"请按快捷键" = "Press a shortcut";
+
+/* MappingView.swift */
+"点任意一个按键，改它发出的快捷键。" = "Click any button to change the shortcut it sends.";
+"手柄" = "Controller";
+"还没授权，改了也暂时不生效。" = "No permission yet, so changes won't take effect.";
+"前往设置" = "Open Settings";
+"重新读取" = "Reload";
+"%@ 按键配置" = "%@ button setup";
+"· 电量 %lld/4 · 充电中" = "· Battery %lld/4 · charging";
+"· 电量 %lld/4" = "· Battery %lld/4";
+
+/* OnboardingView.swift */
+"明天下午三点开会" = "Meeting tomorrow at 3pm";
+"稍后设置" = "Set Up Later";
+"上一步" = "Back";
+"开始用" = "Start";
+"继续" = "Continue";
+"把语音输入" = "Voice input, ";
+"握在手里" = "in your hand";
+"先让 JoyHarness " = "Let JoyHarness ";
+"替你按键" = "press keys for you";
+"连上" = "Connect ";
+"一只手柄" = "a Joy-Con";
+"X 聚焦、ZR 说话、A 发送。一只手就够。" = "X to focus, ZR to talk, A to send. One hand is enough.";
+"它不读你打的字，也不记录你按了什么。" = "It doesn't read what you type or keep track of what you press.";
+"左右手柄都行，连一只就能用。" = "Left or right, one is all you need.";
+"已授权" = "Granted";
+"按住手柄侧面滑轨上的小圆钮，直到指示灯来回闪" = "Hold the small round button on the rail until the lights run back and forth";
+"在蓝牙设置里点 Joy-Con 旁的「连接」" = "In Bluetooth settings, click Connect next to the Joy-Con";
+"连上时手柄会震一下" = "It buzzes once when it connects";
+"连过这台 Mac 的手柄，按任意键就会自己连回来。点「连接」没反应，多半是它后来连过 Switch：在蓝牙列表里移除它，从第 1 步再来。" = "A Joy-Con that has been paired with this Mac reconnects when you press any button. If Connect does nothing, it has probably been paired with a Switch since: remove it from the Bluetooth list and start again from step 1.";
+"左右 Joy-Con 已连接" = "Both Joy-Cons connected";
+"左 Joy-Con 已连接" = "Left Joy-Con connected";
+"右 Joy-Con 已连接" = "Right Joy-Con connected";
+"等待 Joy-Con 连接" = "Waiting for a Joy-Con";
+"先，" = "First, ";
+"把光标放进输入框" = "put the cursor in the box";
+"然后，" = "Then, ";
+"说句话" = "say something";
+"说错了，" = "Got it wrong? ";
+"删一个字" = "Delete a character";
+"最后，" = "Finally, ";
+"发出去" = "send it";
+"说的话怎么变成字，由你自己选的语音输入法完成：先在它里面把启动快捷键设成 fn。Typeless、豆包都行，换成别的也可以。" = "Turning speech into text is your own voice tool's job: set its start shortcut to fn first. Typeless works, and so does any other.";
+"按一下" = "Press";
+"发出" = "for";
+"JoyHarness 现在没在运行。" = "JoyHarness isn't running.";
+"要先授权。" = "Grant permission first.";
+"要先连上一只手柄。" = "Connect a Joy-Con first.";
+"练习用，不会发给任何人" = "Practice only. Nothing is sent anywhere.";
+"按一下 %@，光标就会来这里" = "Press %@ and the cursor lands here";
+"按一下 %@，开始说话…" = "Press %@ and start talking…";
+"光标到位" = "Cursor's in";
+"收到了" = "Got it";
+"%@ 已发出。说完了点继续" = "%@ sent. Click Continue when you're done";
+"删掉了" = "Deleted";
+"发出去了" = "Sent";
+"等你按 %@" = "Waiting for %@";
+"按一下 %@，删掉最后一个字" = "Press %@ to delete the last character";
+"按一下 %@，把它发出去" = "Press %@ to send it";
+"系统设置 › 隐私与安全性 › 辅助功能" = "System Settings › Privacy & Security › Accessibility";
+
+/* RootView.swift */
+"这一步没能完成" = "That didn't work";
+"知道了" = "OK";
+"稍后再试一次。" = "Try again later.";
+"Joy-Con 快捷键" = "Joy-Con shortcuts";
+"已选择" = "Selected";
+"未选择" = "Not selected";
+
+/* RuntimeClient.swift */
+"上一步还没做完，稍等一下。" = "Still finishing the last thing. Give it a moment.";
+"JoyHarness 没有响应。在「关于」里重启一次再试。" = "JoyHarness isn't responding. Restart it from About and try again.";
+"出了点问题。在「关于」里重启一次再试。" = "Something went wrong. Restart from About and try again.";
+"JoyHarness 没有接受这次操作。" = "JoyHarness didn't accept that.";
+
+/* RuntimeManager.swift */
+"JoyHarness 没能启动：%@" = "JoyHarness couldn't start: %@";
+"已经有一个 JoyHarness 在运行了。如果手柄没反应，退出 JoyHarness 再打开一次。" = "Another JoyHarness is already running. If the controller doesn't respond, quit JoyHarness and open it again.";
+"JoyHarness 意外停止了，可以在连接页重新启动。（代码 %d）" = "JoyHarness stopped unexpectedly. You can restart it from Connection. (code %d)";
+"JoyHarness 少了一些文件，可能是没装全。重新安装一次。" = "Some JoyHarness files are missing, probably from an incomplete install. Reinstall it.";
+"这个安装包不包含 %@ 版本的运行时，请下载通用版本的 JoyHarness。" = "This package doesn't include the %@ runtime. Download the universal JoyHarness.";
+"找不到默认的按键配置，可能是没装全。重新安装一次。" = "The default button setup is missing, probably from an incomplete install. Reinstall it.";
+
+/* SettingsView.swift */
+"授权、启动方式、外观，以及手柄和更新的行为。" = "Permission, startup, appearance, and how the controller and updates behave.";
+"权限" = "Permission";
+"偏好" = "Preferences";
+"辅助功能授权" = "Accessibility";
+"JoyHarness 可以替你按键盘了。" = "JoyHarness can press keys for you.";
+"授权之后，JoyHarness 才能替你按键盘。" = "JoyHarness needs this to press keys for you.";
+"登录时启动 JoyHarness" = "Open JoyHarness at login";
+"外观" = "Appearance";
+"修改后立即生效。" = "Takes effect right away.";
+"手柄闲着的时候自动休眠" = "Sleep the controller when idle";
+"放着不用 %lld 分钟就自己睡，按一下手柄就醒。" = "Sleeps after %lld minutes unused. Press a button to wake it.";
+"手柄一直连着会耗电。开启后放着不用它会自己睡，按一下就醒。" = "A connected controller drains its battery. When on, it sleeps when unused and wakes at a press.";
+"自动检查更新" = "Check for updates automatically";
+"每天检查一次。发现新版本会先问你，不会自己装。" = "Checks once a day. A new version asks first and never installs on its own.";
+"关闭后不会再检查，需要你自己留意新版本。" = "When off, nothing checks. Keep an eye out for new versions yourself.";
+"前往确认" = "Approve";
+"登录时启动" = "Open at login";
+"检查" = "Check";
+
+/* StatusBarController.swift */
+"重新启动 JoyHarness" = "Restart JoyHarness";
+"去授权" = "Grant Permission";
+"打开主窗口" = "Open JoyHarness";
+"重新找一次手柄" = "Look for Controllers Again";
+"%@：电量 %lld/4 · 充电中" = "%1$@: battery %2$lld/4 · charging";
+"%@：电量 %lld/4" = "%1$@: battery %2$lld/4";
+"%@：已连接，电量读取中" = "%@: connected, reading battery";
+"%@：%@" = "%1$@: %2$@";

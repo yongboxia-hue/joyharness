@@ -12,13 +12,13 @@ enum RuntimeClientError: LocalizedError {
         // do about it rather than the Python process behind it -- the same
         // rule the 关于 page follows ("重启服务", never "后台服务").
         case .busy:
-            return "上一步还没做完，稍等一下。"
+            return String(localized: "上一步还没做完，稍等一下。")
         case .timeout:
-            return "JoyHarness 没有响应。在「关于」里重启一次再试。"
+            return String(localized: "JoyHarness 没有响应。在「关于」里重启一次再试。")
         case .rejected(let message):
             return message
         case .invalidResponse:
-            return "出了点问题。在「关于」里重启一次再试。"
+            return String(localized: "出了点问题。在「关于」里重启一次再试。")
         }
     }
 }
@@ -133,7 +133,7 @@ actor RuntimeClient {
                response.id == requestID {
                 guard response.type == type else { throw RuntimeClientError.invalidResponse }
                 guard response.ok else {
-                    throw RuntimeClientError.rejected(response.error ?? "JoyHarness 没有接受这次操作。")
+                    throw RuntimeClientError.rejected(response.error ?? String(localized: "JoyHarness 没有接受这次操作。"))
                 }
                 return response
             }

@@ -84,28 +84,28 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(impact)
         menu.addItem(.separator())
 
-        menu.addItem(disabledItem(controllerTitle("左手柄", status: state.leftController)))
-        menu.addItem(disabledItem(controllerTitle("右手柄", status: state.rightController)))
+        menu.addItem(disabledItem(controllerTitle(String(localized: "左手柄"), status: state.leftController)))
+        menu.addItem(disabledItem(controllerTitle(String(localized: "右手柄"), status: state.rightController)))
         menu.addItem(.separator())
 
         switch state.availability {
         case .serviceStopped:
-            menu.addItem(actionItem("重新启动 JoyHarness", #selector(startService)))
+            menu.addItem(actionItem(String(localized: "重新启动 JoyHarness"), #selector(startService)))
         case .permissionRequired:
-            menu.addItem(actionItem("去授权", #selector(openPermissions)))
+            menu.addItem(actionItem(String(localized: "去授权"), #selector(openPermissions)))
         case .disconnected:
-            menu.addItem(actionItem("打开蓝牙设置", #selector(openBluetooth)))
+            menu.addItem(actionItem(String(localized: "打开蓝牙设置"), #selector(openBluetooth)))
         case .paused:
-            menu.addItem(actionItem("继续响应", #selector(togglePaused)))
+            menu.addItem(actionItem(String(localized: "继续响应"), #selector(togglePaused)))
         case .ready:
-            menu.addItem(actionItem("暂停响应", #selector(togglePaused)))
+            menu.addItem(actionItem(String(localized: "暂停响应"), #selector(togglePaused)))
         }
 
-        menu.addItem(actionItem("打开主窗口", #selector(openMainWindow)))
-        menu.addItem(actionItem("重新找一次手柄", #selector(refreshStatus)))
+        menu.addItem(actionItem(String(localized: "打开主窗口"), #selector(openMainWindow)))
+        menu.addItem(actionItem(String(localized: "重新找一次手柄"), #selector(refreshStatus)))
         menu.addItem(.separator())
-        menu.addItem(actionItem("关于 JoyHarness", #selector(openAbout)))
-        menu.addItem(actionItem("退出 JoyHarness", #selector(quitApp)))
+        menu.addItem(actionItem(String(localized: "关于 JoyHarness"), #selector(openAbout)))
+        menu.addItem(actionItem(String(localized: "退出 JoyHarness"), #selector(quitApp)))
         return menu
     }
 
@@ -127,9 +127,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     /// read 未连接 here while the 连接 page said 已休眠 · 按任意键唤醒 -- about
     /// the feature most likely to send someone to the menu bar to check.
     private func controllerTitle(_ name: String, status: ControllerStatus) -> String {
-        guard status.connected else { return "\(name)：\(status.statusText)" }
-        guard let level = status.batteryLevel else { return "\(name)：已连接，电量读取中" }
-        return status.charging ? "\(name)：电量 \(level)/4 · 充电中" : "\(name)：电量 \(level)/4"
+        guard status.connected else { return String(localized: "\(name)：\(status.statusText)") }
+        guard let level = status.batteryLevel else { return String(localized: "\(name)：已连接，电量读取中") }
+        return status.charging ? String(localized: "\(name)：电量 \(level)/4 · 充电中") : String(localized: "\(name)：电量 \(level)/4")
     }
 
     @objc private func openMainWindow() {

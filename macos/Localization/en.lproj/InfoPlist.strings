@@ -1,0 +1,2 @@
+/* Shown by macOS when it asks for Bluetooth access. */
+"NSBluetoothAlwaysUsageDescription" = "JoyHarness connects to your Joy-Con to read its buttons.";

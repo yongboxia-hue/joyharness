@@ -5,7 +5,7 @@ enum ControllerSide: String, CaseIterable, Identifiable {
     case right
 
     var id: String { rawValue }
-    var title: String { self == .left ? "左手柄" : "右手柄" }
+    var title: String { self == .left ? String(localized: "左手柄") : String(localized: "右手柄") }
     var imageName: String { self == .left ? "JoyConLeft" : "JoyConRight" }
     var profileName: String { self == .left ? "single_left" : "single_right" }
 }
@@ -20,7 +20,7 @@ struct MappingRow: Identifiable, Equatable {
     let gesture: String?
     let value: String
 
-    var isSet: Bool { value != "未设置" }
+    var isSet: Bool { value != String(localized: "未设置") }
 }
 
 struct MappingCardModel: Identifiable, Equatable {
@@ -70,7 +70,7 @@ enum MappingConfigReader {
                 let mapping = buttons[button] as? [String: Any]
                 return MappingCardModel(
                     id: button,
-                    key: display,
+                    key: buttonLabel(display),
                     hotspotKey: hotspot,
                     rows: rows(for: mapping)
                 )
@@ -96,20 +96,20 @@ enum MappingConfigReader {
     /// than listed as "未设置", which used to make a button's most important
     /// behaviour (holding ⌫ to keep deleting) look unconfigured.
     private static func rows(for mapping: [String: Any]?) -> [MappingRow] {
-        guard let mapping else { return [MappingRow(id: "only", gesture: nil, value: "未设置")] }
+        guard let mapping else { return [MappingRow(id: "only", gesture: nil, value: String(localized: "未设置"))] }
 
         switch mapping["action"] as? String ?? "disabled" {
         case "app_switch_mode":
-            return [MappingRow(id: "single", gesture: "单击", value: "⌘Tab"),
-                    MappingRow(id: "long", gesture: "长按", value: "切换应用")]
+            return [MappingRow(id: "single", gesture: String(localized: "单击"), value: "⌘Tab"),
+                    MappingRow(id: "long", gesture: String(localized: "长按"), value: String(localized: "切换应用"))]
         case "short_long":
-            return slots(mapping, [("single", "单击", "short"), ("long", "长按", "long")])
+            return slots(mapping, [("single", String(localized: "单击"), "short"), ("long", String(localized: "长按"), "long")])
         case "double_tap":
-            return slots(mapping, [("single", "单击", "single"), ("double", "双击", "double")])
+            return slots(mapping, [("single", String(localized: "单击"), "single"), ("double", String(localized: "双击"), "double")])
         case "multi_trigger":
-            return slots(mapping, [("single", "单击", "tap"), ("double", "双击", "double"), ("long", "长按", "hold")])
+            return slots(mapping, [("single", String(localized: "单击"), "tap"), ("double", String(localized: "双击"), "double"), ("long", String(localized: "长按"), "hold")])
         case "disabled":
-            return [MappingRow(id: "only", gesture: nil, value: "未设置")]
+            return [MappingRow(id: "only", gesture: nil, value: String(localized: "未设置"))]
         default:
             return [MappingRow(id: "only", gesture: nil, value: formatAction(mapping))]
         }
@@ -122,15 +122,15 @@ enum MappingConfigReader {
         let rows = spec.compactMap { entry -> MappingRow? in
             guard let slot = mapping[entry.key] as? [String: Any] else { return nil }
             let label = formatAction(slot)
-            guard label != "未设置" else { return nil }
+            guard label != String(localized: "未设置") else { return nil }
             return MappingRow(id: entry.id, gesture: entry.title, value: label)
         }
-        return rows.isEmpty ? [MappingRow(id: "only", gesture: nil, value: "未设置")] : rows
+        return rows.isEmpty ? [MappingRow(id: "only", gesture: nil, value: String(localized: "未设置"))] : rows
     }
 
     /// Human-readable label for one mapping or one gesture slot.
     static func formatAction(_ mapping: [String: Any]?) -> String {
-        guard let mapping else { return "未设置" }
+        guard let mapping else { return String(localized: "未设置") }
 
         // Both a passthrough button and a gesture slot are just keys; the
         // slot omits the action name because it has no behaviour of its own.
@@ -145,8 +145,19 @@ enum MappingConfigReader {
     }
 
     private static func keyLabel(_ key: String?) -> String {
-        guard let key else { return "未设置" }
+        guard let key else { return String(localized: "未设置") }
         return KeyboardKeyCatalog.label(for: key)
+    }
+
+    /// Two keys are named in words rather than printed symbols. The table
+    /// below keeps the Chinese name, which is also the hotspots.json key;
+    /// only what is shown gets translated.
+    private static func buttonLabel(_ display: String) -> String {
+        switch display {
+        case "摇杆": return String(localized: "摇杆")
+        case "截图": return String(localized: "截图")
+        default: return display
+        }
     }
 
     private static func buttonSpecs(for side: ControllerSide) -> [(String, String, String)] {

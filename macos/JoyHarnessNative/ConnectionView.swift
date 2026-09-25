@@ -7,8 +7,8 @@ struct ConnectionView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 PageTitle(
-                    "连接",
-                    subtitle: "手柄连上了没有，常用按键现在发出什么。",
+                    String(localized: "连接"),
+                    subtitle: String(localized: "手柄连上了没有，常用按键现在发出什么。"),
                     // No status badge here. The banner below states the three
                     // states this page cannot act on, the 按键响应 card states
                     // the other two, and the sidebar states all five all the
@@ -37,15 +37,15 @@ struct ConnectionView: View {
                 // card inside another card any more, which is what used to
                 // put two nearly identical greys on top of each other.
                 VStack(alignment: .leading, spacing: 10) {
-                    JoySectionHeader("设备")
+                    JoySectionHeader(String(localized: "设备"))
                     HStack(spacing: 14) {
                         controllerCard(
-                            name: "左手柄",
+                            name: String(localized: "左手柄"),
                             imageName: ControllerSide.left.imageName,
                             status: state.leftController
                         )
                         controllerCard(
-                            name: "右手柄",
+                            name: String(localized: "右手柄"),
                             imageName: ControllerSide.right.imageName,
                             status: state.rightController
                         )
@@ -58,16 +58,16 @@ struct ConnectionView: View {
                     // it, and a summary that does not say which hand it means
                     // looks like a summary that did not update.
                     JoySectionHeader(
-                        "常用按键 · \(state.previewSide == .left ? "左手柄" : "右手柄")",
+                        String(localized: "常用按键 · \(state.previewSide.title)"),
                         trailing: AnyView(
-                            Button("全部配置") { state.selectedPage = .mapping }
+                            Button(String(localized: "全部配置")) { state.selectedPage = .mapping }
                                 .buttonStyle(JoyLinkButtonStyle())
                         )
                     )
 
                     if previewMappings.isEmpty {
                         JoyCard(padding: 14) {
-                            Text("还没有配置任何按键。")
+                            Text(String(localized: "还没有配置任何按键。"))
                                 .font(.system(size: 12))
                                 .foregroundStyle(JoyTheme.detail)
                         }
@@ -93,7 +93,7 @@ struct ConnectionView: View {
                 // place on the page explains why a press does nothing.
                 if !showsRecoveryCard {
                     VStack(alignment: .leading, spacing: 10) {
-                        JoySectionHeader("按键响应")
+                        JoySectionHeader(String(localized: "按键响应"))
                         // Keyed off availability, not just `paused`: without the
                         // Accessibility grant no key can be sent at all, and this
                         // row still read 正在响应 · 按键正在发出快捷键 on the same
@@ -109,8 +109,8 @@ struct ConnectionView: View {
                                         state.togglePaused()
                                     } label: {
                                         SteadyTitle(
-                                            state.isChangingPauseState ? "处理中…" : (state.paused ? "继续响应" : "暂停响应"),
-                                            of: ["暂停响应", "继续响应", "处理中…"]
+                                            state.isChangingPauseState ? String(localized: "处理中…") : (state.paused ? String(localized: "继续响应") : String(localized: "暂停响应")),
+                                            of: [String(localized: "暂停响应"), String(localized: "继续响应"), String(localized: "处理中…")]
                                         )
                                     }
                                     .buttonStyle(SecondaryButtonStyle())
@@ -145,21 +145,21 @@ struct ConnectionView: View {
     /// the menu-bar icon use.
     private var responseTitle: String {
         switch state.availability {
-        case .ready: return "可以用了"
-        case .paused: return "已暂停"
-        case .permissionRequired: return "等待授权"
-        case .serviceStopped: return "没有在运行"
-        case .disconnected: return "还没连上手柄"
+        case .ready: return String(localized: "可以用了")
+        case .paused: return String(localized: "已暂停")
+        case .permissionRequired: return String(localized: "等待授权")
+        case .serviceStopped: return String(localized: "没有在运行")
+        case .disconnected: return String(localized: "还没连上手柄")
         }
     }
 
     private var responseDetail: String {
         switch state.availability {
-        case .ready: return "现在按手柄，Mac 就有反应。"
-        case .paused: return "手柄还连着，只是暂时不动作。"
-        case .permissionRequired: return "先去「设置」里授权。"
-        case .serviceStopped: return "JoyHarness 没在运行。"
-        case .disconnected: return "连上任意一只手柄就能用。"
+        case .ready: return String(localized: "现在按手柄，Mac 就有反应。")
+        case .paused: return String(localized: "手柄还连着，只是暂时不动作。")
+        case .permissionRequired: return String(localized: "先去「设置」里授权。")
+        case .serviceStopped: return String(localized: "JoyHarness 没在运行。")
+        case .disconnected: return String(localized: "连上任意一只手柄就能用。")
         }
     }
 
@@ -212,7 +212,7 @@ struct ConnectionView: View {
     /// the screen.
     private func bannerDetail(for availability: AvailabilityState) -> String {
         guard availability == .disconnected else { return availability.detail }
-        return availability.detail + "第一次配对要长按手柄侧边的同步键，直到指示灯来回跑动。"
+        return availability.detail + String(localized: "第一次配对要按住手柄侧面滑轨上的小圆钮，直到指示灯来回闪。")
     }
 
     @ViewBuilder
@@ -220,21 +220,21 @@ struct ConnectionView: View {
         switch availability {
         case .serviceStopped:
             Button { state.startService() } label: {
-                SteadyTitle(state.isPerformingServiceAction ? "正在启动…" : "重新启动",
-                            of: ["重新启动", "正在启动…"])
+                SteadyTitle(state.isPerformingServiceAction ? String(localized: "正在启动…") : String(localized: "重新启动"),
+                            of: [String(localized: "重新启动"), String(localized: "正在启动…")])
             }
             .buttonStyle(SecondaryButtonStyle())
             .disabled(state.isPerformingServiceAction)
         case .permissionRequired:
-            Button("前往授权") { state.selectedPage = .settings }
+            Button(String(localized: "前往授权")) { state.selectedPage = .settings }
                 .buttonStyle(SecondaryButtonStyle())
         case .disconnected:
-            Button("打开蓝牙设置") { state.openBluetoothSettings() }
+            Button(String(localized: "打开蓝牙设置")) { state.openBluetoothSettings() }
                 .buttonStyle(SecondaryButtonStyle())
         case .paused:
             Button { state.togglePaused() } label: {
-                SteadyTitle(state.isChangingPauseState ? "处理中…" : "继续响应",
-                            of: ["继续响应", "处理中…"])
+                SteadyTitle(state.isChangingPauseState ? String(localized: "处理中…") : String(localized: "继续响应"),
+                            of: [String(localized: "继续响应"), String(localized: "处理中…")])
             }
             .buttonStyle(SecondaryButtonStyle())
             .disabled(state.isChangingPauseState)
@@ -317,7 +317,7 @@ struct ConnectionView: View {
                     if status.connected {
                         BatteryLevelView(level: status.batteryLevel, charging: status.charging)
                     } else if status.asleep {
-                        Text("按一下手柄就醒")
+                        Text(String(localized: "按一下手柄就醒"))
                             .font(.system(size: 12))
                             .foregroundStyle(JoyTheme.detail)
                     }
@@ -354,8 +354,8 @@ struct ConnectionView: View {
         var result: [MappingPreviewItem] = []
 
         func append(_ card: MappingCardModel, _ row: MappingRow) {
-            guard result.count < 6, row.value != "未设置" else { return }
-            let gesture = row.gesture ?? "单击"
+            guard result.count < 6, row.value != String(localized: "未设置") else { return }
+            let gesture = row.gesture ?? String(localized: "单击")
             let id = "\(card.id)-\(gesture)"
             guard !result.contains(where: { $0.id == id }) else { return }
             result.append(MappingPreviewItem(
@@ -411,7 +411,7 @@ struct BatteryLevelView: View {
     }
 
     private var detail: String {
-        guard let level else { return "电量读取中" }
-        return charging ? "电量 \(level)/4 · 充电中" : "电量 \(level)/4"
+        guard let level else { return String(localized: "电量读取中") }
+        return charging ? String(localized: "电量 \(level)/4 · 充电中") : String(localized: "电量 \(level)/4")
     }
 }

@@ -14,10 +14,10 @@ enum SidebarPage: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .connection: return "连接"
-        case .mapping: return "按键"
-        case .settings: return "设置"
-        case .about: return "关于"
+        case .connection: return String(localized: "连接")
+        case .mapping: return String(localized: "按键")
+        case .settings: return String(localized: "设置")
+        case .about: return String(localized: "关于")
         }
     }
 
@@ -40,9 +40,9 @@ enum AppAppearance: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .system: return "跟随系统"
-        case .light: return "浅色"
-        case .dark: return "深色"
+        case .system: return String(localized: "跟随系统")
+        case .light: return String(localized: "浅色")
+        case .dark: return String(localized: "深色")
         }
     }
 
@@ -64,36 +64,36 @@ enum AvailabilityState: Equatable {
 
     var title: String {
         switch self {
-        case .serviceStopped: return "JoyHarness 暂时没有在运行"
-        case .permissionRequired: return "还需要完成系统授权"
-        case .disconnected: return "还没有连上手柄"
-        case .paused: return "按键响应已暂停"
-        case .ready: return "已就绪"
+        case .serviceStopped: return String(localized: "JoyHarness 暂时没有在运行")
+        case .permissionRequired: return String(localized: "还需要完成系统授权")
+        case .disconnected: return String(localized: "还没有连上手柄")
+        case .paused: return String(localized: "按键响应已暂停")
+        case .ready: return String(localized: "已就绪")
         }
     }
 
     var badge: String {
         switch self {
-        case .serviceStopped: return "服务异常"
-        case .permissionRequired: return "需要授权"
-        case .disconnected: return "未连接"
-        case .paused: return "已暂停"
-        case .ready: return "已就绪"
+        case .serviceStopped: return String(localized: "服务异常")
+        case .permissionRequired: return String(localized: "需要授权")
+        case .disconnected: return String(localized: "未连接")
+        case .paused: return String(localized: "已暂停")
+        case .ready: return String(localized: "已就绪")
         }
     }
 
     var detail: String {
         switch self {
         case .serviceStopped:
-            return "手柄按了没反应。你的配置都还在。"
+            return String(localized: "手柄按了没反应。你的配置都还在。")
         case .permissionRequired:
-            return "先在系统里授权，JoyHarness 才能替你按键盘。"
+            return String(localized: "先在系统里授权，JoyHarness 才能替你按键盘。")
         case .disconnected:
-            return "在系统蓝牙设置里连上任意一只手柄就能用。"
+            return String(localized: "在系统蓝牙设置里连上任意一只手柄就能用。")
         case .paused:
-            return "手柄还连着，只是暂时不动作。"
+            return String(localized: "手柄还连着，只是暂时不动作。")
         case .ready:
-            return "现在按手柄，Mac 就有反应。"
+            return String(localized: "现在按手柄，Mac 就有反应。")
         }
     }
 
@@ -139,8 +139,8 @@ final class AppState: ObservableObject {
     @Published var isPerformingServiceAction = false
     @Published var isChangingPauseState = false
     @Published var launchAtLogin = false
-    @Published var launchAtLoginStatus = "未开启"
-    @Published var launchAtLoginDetail = "登录 Mac 后自动启动，无需手动打开。"
+    @Published var launchAtLoginStatus = String(localized: "未开启")
+    @Published var launchAtLoginDetail = String(localized: "登录 Mac 后自动启动，无需手动打开。")
     @Published var launchAtLoginRequiresApproval = false
     @Published var isUpdatingLaunchAtLogin = false
     @Published var appearance: AppAppearance = .system
@@ -247,10 +247,10 @@ final class AppState: ObservableObject {
     }
 
     var controllerSummary: String {
-        if leftController.connected && rightController.connected { return "左右手柄都连上了" }
-        if leftController.connected { return "左手柄已连接" }
-        if rightController.connected { return "右手柄已连接" }
-        return "没有找到手柄"
+        if leftController.connected && rightController.connected { return String(localized: "左右手柄都连上了") }
+        if leftController.connected { return String(localized: "左手柄已连接") }
+        if rightController.connected { return String(localized: "右手柄已连接") }
+        return String(localized: "没有找到手柄")
     }
 
     var statusSummary: String {
@@ -301,7 +301,7 @@ final class AppState: ObservableObject {
             if !hasReportedUnreadableStatus {
                 hasReportedUnreadableStatus = true
                 NSLog("JoyHarness: status.json is fresh but unreadable (\(data.count) bytes)")
-                lastError = "JoyHarness 读不到自己的状态。退出再打开一次，通常就好了。"
+                lastError = String(localized: "JoyHarness 读不到自己的状态。退出再打开一次，通常就好了。")
             }
         } else if hasReportedUnreadableStatus {
             hasReportedUnreadableStatus = false
@@ -393,7 +393,7 @@ final class AppState: ObservableObject {
                 try await configStore.save(root)
                 idleSleepMinutes = minutes
             } catch {
-                lastError = "休眠设置没保存上：\(error.localizedDescription)"
+                lastError = String(localized: "休眠设置没保存上：\(error.localizedDescription)")
             }
             isSavingIdleSleep = false
         }
@@ -515,7 +515,7 @@ final class AppState: ObservableObject {
                 paused = confirmedState
                 refreshStatusSoon()
             } catch {
-                lastError = "没能切换：\(error.localizedDescription)"
+                lastError = String(localized: "没能切换：\(error.localizedDescription)")
             }
             isChangingPauseState = false
         }
@@ -544,8 +544,8 @@ final class AppState: ObservableObject {
     func refreshLaunchAtLogin() {
         guard #available(macOS 13.0, *) else {
             launchAtLogin = false
-            launchAtLoginStatus = "系统不支持"
-            launchAtLoginDetail = "需要 macOS 13 或更高版本。"
+            launchAtLoginStatus = String(localized: "系统不支持")
+            launchAtLoginDetail = String(localized: "需要 macOS 13 或更高版本。")
             launchAtLoginRequiresApproval = false
             return
         }
@@ -554,11 +554,11 @@ final class AppState: ObservableObject {
         launchAtLoginRequiresApproval = status == .requiresApproval
         switch status {
         case .enabled:
-            launchAtLoginStatus = "已开启"
-            launchAtLoginDetail = "登录 Mac 后自动启动，无需手动打开。"
+            launchAtLoginStatus = String(localized: "已开启")
+            launchAtLoginDetail = String(localized: "登录 Mac 后自动启动，无需手动打开。")
         case .requiresApproval:
-            launchAtLoginStatus = "等待确认"
-            launchAtLoginDetail = "去「系统设置 → 通用 → 登录项」里允许 JoyHarness。"
+            launchAtLoginStatus = String(localized: "等待确认")
+            launchAtLoginDetail = String(localized: "去「系统设置 → 通用 → 登录项」里允许 JoyHarness。")
         // .notFound is what a never-registered app reads as: launchd has no
         // record to look up yet, which is indistinguishable from "off" and is
         // fixed by the very toggle this row carries. Reporting it as 当前不可用
@@ -566,11 +566,11 @@ final class AppState: ObservableObject {
         // install chasing something they had already done, about a feature that
         // worked -- flipping the switch registers it first time.
         case .notRegistered, .notFound:
-            launchAtLoginStatus = "未开启"
-            launchAtLoginDetail = "开启后，登录 Mac 时会自动启动 JoyHarness。"
+            launchAtLoginStatus = String(localized: "未开启")
+            launchAtLoginDetail = String(localized: "开启后，登录 Mac 时会自动启动 JoyHarness。")
         @unknown default:
-            launchAtLoginStatus = "状态未知"
-            launchAtLoginDetail = "读不到系统里的设置，稍后再试。"
+            launchAtLoginStatus = String(localized: "状态未知")
+            launchAtLoginDetail = String(localized: "读不到系统里的设置，稍后再试。")
         }
     }
 
@@ -587,7 +587,7 @@ final class AppState: ObservableObject {
             refreshLaunchAtLogin()
         } catch {
             refreshLaunchAtLogin()
-            lastError = "没能改成功：\(error.localizedDescription)"
+            lastError = String(localized: "没能改成功：\(error.localizedDescription)")
         }
     }
 
@@ -741,7 +741,7 @@ final class AppState: ObservableObject {
     func exportDiagnostics() {
         guard !isExportingDiagnostics else { return }
         let panel = NSSavePanel()
-        panel.title = "导出 JoyHarness 诊断包"
+        panel.title = String(localized: "导出 JoyHarness 诊断包")
         panel.nameFieldStringValue = "JoyHarness-Diagnostics-\(Self.diagnosticDate()).zip"
         panel.allowedContentTypes = [.zip]
         panel.canCreateDirectories = true
@@ -771,7 +771,7 @@ final class AppState: ObservableObject {
             } catch {
                 await MainActor.run {
                     self.isExportingDiagnostics = false
-                    self.lastError = "排查文件没能导出：\(error.localizedDescription)"
+                    self.lastError = String(localized: "排查文件没能导出：\(error.localizedDescription)")
                 }
             }
         }
@@ -795,7 +795,7 @@ final class AppState: ObservableObject {
             mappingConfigError = nil
         } catch {
             mappingConfiguration = .empty
-            mappingConfigError = "读不到当前的按键配置：\(error.localizedDescription)"
+            mappingConfigError = String(localized: "读不到当前的按键配置：\(error.localizedDescription)")
         }
     }
 
@@ -805,7 +805,7 @@ final class AppState: ObservableObject {
                 let root = try await configStore.loadJSONObject()
                 mappingDraft = draft(from: root, side: side, button: button, displayKey: displayKey)
             } catch {
-                lastError = "打不开按键配置：\(error.localizedDescription)"
+                lastError = String(localized: "打不开按键配置：\(error.localizedDescription)")
             }
         }
     }
@@ -829,7 +829,7 @@ final class AppState: ObservableObject {
                 mappingDraft = nil
                 completion(nil)
             } catch {
-                completion("没保存上：\(error.localizedDescription)")
+                completion(String(localized: "没保存上：\(error.localizedDescription)"))
             }
             isSavingMapping = false
         }
@@ -930,7 +930,7 @@ final class AppState: ObservableObject {
     }
 
     private func displayButton(_ button: String) -> String {
-        ["Plus": "+", "Minus": "−", "RStick": "摇杆", "LStick": "摇杆", "Capture": "截图"][button] ?? button
+        ["Plus": "+", "Minus": "−", "RStick": String(localized: "摇杆"), "LStick": String(localized: "摇杆"), "Capture": String(localized: "截图")][button] ?? button
     }
 
     private func openPrivacyPane(anchor: String) {
@@ -954,7 +954,7 @@ final class AppState: ObservableObject {
         guard !isPerformingServiceAction else { return }
         let scriptURL = runtimeURL.appendingPathComponent("scripts/\(name)")
         guard FileManager.default.isExecutableFile(atPath: scriptURL.path) else {
-            lastError = "JoyHarness 少了一个组件，可能是没装全。重新安装一次。"
+            lastError = String(localized: "JoyHarness 少了一个组件，可能是没装全。重新安装一次。")
             return
         }
 
@@ -974,7 +974,7 @@ final class AppState: ObservableObject {
                 if process.terminationStatus != 0 {
                     self.lastError = message?.isEmpty == false
                         ? message
-                        : "这一步没能完成，稍后再试。"
+                        : String(localized: "这一步没能完成，稍后再试。")
                 }
                 self.refreshStatusSoon()
             }
@@ -984,7 +984,7 @@ final class AppState: ObservableObject {
             try task.run()
         } catch {
             isPerformingServiceAction = false
-            lastError = "这一步没能开始：\(error.localizedDescription)"
+            lastError = String(localized: "这一步没能开始：\(error.localizedDescription)")
         }
     }
 

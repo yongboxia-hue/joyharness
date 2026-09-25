@@ -10,8 +10,8 @@ struct ControllerStatus: Equatable, Sendable {
     var charging = false
 
     var statusText: String {
-        if connected { return "已连接" }
-        return asleep ? "已休眠" : "未连接"
+        if connected { return String(localized: "已连接") }
+        return asleep ? String(localized: "已休眠") : String(localized: "未连接")
     }
 }
 

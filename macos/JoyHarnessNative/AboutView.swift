@@ -13,7 +13,7 @@ struct AboutView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                PageTitle("关于", subtitle: "版本信息，以及出问题时的排查入口。")
+                PageTitle(String(localized: "关于"), subtitle: String(localized: "版本信息，以及出问题时的排查入口。"))
 
                 JoyCard {
                     HStack(spacing: 20) {
@@ -26,7 +26,7 @@ struct AboutView: View {
                         VStack(alignment: .leading, spacing: 7) {
                             Text("JoyHarness")
                                 .font(.system(size: 25, weight: .bold, design: .rounded))
-                            Text("把 Joy-Con 变成快捷键控制器")
+                            Text(String(localized: "把 Joy-Con 变成快捷键控制器"))
                                 .font(.system(size: 15, weight: .semibold))
                             Text(versionLabel)
                                 .font(.system(size: 12))
@@ -35,7 +35,7 @@ struct AboutView: View {
                     }
                 }
 
-                JoySectionHeader("出问题时")
+                JoySectionHeader(String(localized: "出问题时"))
 
                 JoyCard {
                     VStack(spacing: 0) {
@@ -46,17 +46,17 @@ struct AboutView: View {
                         // when the buttons stop responding.
                         InfoRow(
                             symbol: "arrow.clockwise",
-                            title: "重启服务",
+                            title: String(localized: "重启服务"),
                             detail: state.serviceRunning
-                                ? "手柄按了没反应时，重启一次通常就好了。"
-                                : "现在没在运行，按手柄不会有反应。",
+                                ? String(localized: "手柄按了没反应时，重启一次通常就好了。")
+                                : String(localized: "现在没在运行，按手柄不会有反应。"),
                             tint: state.serviceRunning ? .secondary : .red,
                             trailing: AnyView(
                                 Button {
                                     state.restartService()
                                 } label: {
-                                    SteadyTitle(state.isPerformingServiceAction ? "处理中…" : "重启",
-                                                of: ["重启", "处理中…"])
+                                    SteadyTitle(state.isPerformingServiceAction ? String(localized: "处理中…") : String(localized: "重启"),
+                                                of: [String(localized: "重启"), String(localized: "处理中…")])
                                 }
                                 .buttonStyle(SecondaryButtonStyle())
                                 .disabled(state.isPerformingServiceAction)
@@ -65,22 +65,22 @@ struct AboutView: View {
                         Divider().padding(.leading, 47).padding(.vertical, 12)
                         InfoRow(
                             symbol: "sparkles.rectangle.stack",
-                            title: "首次使用引导",
-                            detail: "从头走一遍：授权、连手柄、试按键。",
+                            title: String(localized: "首次使用引导"),
+                            detail: String(localized: "从头走一遍：授权、连手柄、试按键。"),
                             trailing: AnyView(
-                                Button("重新查看") { state.showOnboarding() }
+                                Button(String(localized: "重新查看")) { state.showOnboarding() }
                                     .buttonStyle(SecondaryButtonStyle())
                             )
                         )
                         Divider().padding(.leading, 47).padding(.vertical, 12)
                         InfoRow(
                             symbol: "stethoscope",
-                            title: "运行诊断",
-                            detail: "在本机生成一份排查用的文件，不会上传到任何地方。",
+                            title: String(localized: "运行诊断"),
+                            detail: String(localized: "在本机生成一份排查用的文件，不会上传到任何地方。"),
                             trailing: AnyView(
                                 Button { state.exportDiagnostics() } label: {
-                                    SteadyTitle(state.isExportingDiagnostics ? "正在导出…" : "导出诊断包",
-                                                of: ["导出诊断包", "正在导出…"])
+                                    SteadyTitle(state.isExportingDiagnostics ? String(localized: "正在导出…") : String(localized: "导出诊断包"),
+                                                of: [String(localized: "导出诊断包"), String(localized: "正在导出…")])
                                 }
                                 .buttonStyle(SecondaryButtonStyle())
                                 .disabled(state.isExportingDiagnostics)
@@ -93,7 +93,7 @@ struct AboutView: View {
                 }
 
                 if state.buildFlavor == "preview" {
-                    Text("这是 Preview 版。它的设置只属于自己，不会动到你正式装的那个 JoyHarness。")
+                    Text(String(localized: "这是 Preview 版。它的设置只属于自己，不会动到你正式装的那个 JoyHarness。"))
                         .font(.system(size: 12))
                         .foregroundStyle(JoyTheme.detail)
                         .padding(.horizontal, 4)
@@ -106,6 +106,6 @@ struct AboutView: View {
 
     private var versionLabel: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
-        return state.buildFlavor == "preview" ? "版本 \(version) Preview" : "版本 \(version)"
+        return state.buildFlavor == "preview" ? String(localized: "版本 \(version) Preview") : String(localized: "版本 \(version)")
     }
 }

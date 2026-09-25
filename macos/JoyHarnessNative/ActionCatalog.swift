@@ -24,14 +24,14 @@ enum ActionCatalog {
 
     /// action identifier → what it is called everywhere it appears.
     static let names: [String: String] = [
-        "disabled": "未设置",
-        "app_switch_mode": "切换应用",
-        "window_switch": "切换窗口",
-        "focus_input": "聚焦输入框",
-        "screenshot": "截图",
-        "window_picker": "选择窗口",
-        "macro": "执行宏",
-        "exec": "运行命令"
+        "disabled": String(localized: "未设置"),
+        "app_switch_mode": String(localized: "切换应用"),
+        "window_switch": String(localized: "切换窗口"),
+        "focus_input": String(localized: "聚焦输入框"),
+        "screenshot": String(localized: "截图"),
+        "window_picker": String(localized: "选择窗口"),
+        "macro": String(localized: "执行宏"),
+        "exec": String(localized: "运行命令")
     ]
 
     /// Actions the mapping editor offers, in menu order. Anything configurable
@@ -69,19 +69,19 @@ enum ActionCatalog {
     }
 
     private static let shortcutMeanings: [String: String] = [
-        "fn": "语音输入",
-        "⌘V": "粘贴",
-        "⌥A": "连续听写",
-        "⌥": "修饰键",
-        "↩": "回车",
-        "⇧↩": "换行",
-        "⌫": "删除",
-        "Esc": "取消",
-        "⎋": "取消",
-        "⌘Space": "聚焦搜索",
-        "⌘L": "定位",
-        "⌘K": "清除",
-        "⌘Tab": "切换应用"
+        "fn": String(localized: "语音输入"),
+        "⌘V": String(localized: "粘贴"),
+        "⌥A": String(localized: "连续听写"),
+        "⌥": String(localized: "修饰键"),
+        "↩": String(localized: "回车"),
+        "⇧↩": String(localized: "换行"),
+        "⌫": String(localized: "删除"),
+        "Esc": String(localized: "取消"),
+        "⎋": String(localized: "取消"),
+        "⌘Space": String(localized: "聚焦搜索"),
+        "⌘L": String(localized: "定位"),
+        "⌘K": String(localized: "清除"),
+        "⌘Tab": String(localized: "切换应用")
     ]
 
     private static let actionMeanings: [String: String] = [
@@ -89,12 +89,12 @@ enum ActionCatalog {
         // 在应用之间切换 was the same sentence twice -- and it says so in two
         // to four characters, because it is printed on one line beside the
         // name and anything longer is simply cut off.
-        "app_switch_mode": "选应用",
-        "window_switch": "选窗口",
-        "window_picker": "选窗口",
-        "focus_input": "定位光标",
-        "screenshot": "存成图片",
-        "macro": "一串操作",
-        "exec": "跑命令"
+        "app_switch_mode": String(localized: "选应用"),
+        "window_switch": String(localized: "选窗口"),
+        "window_picker": String(localized: "选窗口"),
+        "focus_input": String(localized: "定位光标"),
+        "screenshot": String(localized: "存成图片"),
+        "macro": String(localized: "一串操作"),
+        "exec": String(localized: "跑命令")
     ]
 }

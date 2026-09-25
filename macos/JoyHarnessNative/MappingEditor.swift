@@ -9,9 +9,9 @@ enum MappingGesture: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .single: return "单击"
-        case .double: return "双击"
-        case .long: return "长按"
+        case .single: return String(localized: "单击")
+        case .double: return String(localized: "双击")
+        case .long: return String(localized: "长按")
         }
     }
 }
@@ -82,7 +82,7 @@ enum MappingActionDraft: Equatable {
 
     var displayLabel: String {
         switch self {
-        case .pending: return "未设置"
+        case .pending: return String(localized: "未设置")
         case .shortcut(let shortcut): return shortcut.displayLabel
         case .preserved(_, let label): return label
         default: return ActionCatalog.name(of: actionName)
@@ -172,7 +172,7 @@ struct MappingEditorSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 3) {
-                Text("配置 \(draft.displayKey)")
+                Text(String(localized: "配置 \(draft.displayKey)"))
                     .font(.system(size: 17, weight: .semibold))
                 Text(draft.side.title)
                     .font(.system(size: 12))
@@ -180,7 +180,7 @@ struct MappingEditorSheet: View {
             }
 
             if isBuiltInDraft {
-                Label("内置动作，单击和长按不能分开设置。", systemImage: "lock")
+                Label(String(localized: "内置动作，单击和长按不能分开设置。"), systemImage: "lock")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 10)
@@ -226,11 +226,11 @@ struct MappingEditorSheet: View {
             if !isBuiltInDraft && (!draft.long.isSet || !draft.double.isSet) {
                 HStack(spacing: 18) {
                     if !draft.long.isSet {
-                        addGestureButton("添加长按") { draft.long = .pending }
+                        addGestureButton(String(localized: "添加长按")) { draft.long = .pending }
                             .accessibilityIdentifier("mapping-add-long")
                     }
                     if !draft.double.isSet {
-                        addGestureButton("添加双击") { draft.double = .pending }
+                        addGestureButton(String(localized: "添加双击")) { draft.double = .pending }
                             .accessibilityIdentifier("mapping-add-double")
                     }
                     Spacer(minLength: 0)
@@ -241,7 +241,7 @@ struct MappingEditorSheet: View {
             // tooltip on a menu, which is to say invisible: nothing told you
             // that adding this slows every single press down.
             if draft.double.isSet {
-                Text("加了双击之后，单击会延迟 0.35 秒才触发。")
+                Text(String(localized: "加了双击之后，单击会延迟 0.35 秒才触发。"))
                     .font(.system(size: 11))
                     .foregroundStyle(JoyTheme.detail)
             }
@@ -251,7 +251,7 @@ struct MappingEditorSheet: View {
             // and from trying it once; that the short press moves to release
             // is not.
             if isSplit {
-                Text("单击会在松手时触发。")
+                Text(String(localized: "单击会在松手时触发。"))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
@@ -265,14 +265,14 @@ struct MappingEditorSheet: View {
 
             Divider()
             HStack {
-                Button("恢复推荐") {
+                Button(String(localized: "恢复推荐")) {
                     draft = state.recommendedDraft(side: draft.side, button: draft.button, displayKey: draft.displayKey)
                     saveError = nil
                 }
                 .buttonStyle(SecondaryButtonStyle())
                 .accessibilityIdentifier("mapping-editor-reset")
                 Spacer()
-                Button("取消") { dismiss() }
+                Button(String(localized: "取消")) { dismiss() }
                     .buttonStyle(SecondaryButtonStyle())
                     .accessibilityIdentifier("mapping-editor-cancel")
                 Button {
@@ -282,7 +282,7 @@ struct MappingEditorSheet: View {
                         if failure == nil { dismiss() }
                     }
                 } label: {
-                    SteadyTitle(state.isSavingMapping ? "保存中…" : "保存", of: ["保存", "保存中…"])
+                    SteadyTitle(state.isSavingMapping ? String(localized: "保存中…") : String(localized: "保存"), of: [String(localized: "保存"), String(localized: "保存中…")])
                 }
                 .buttonStyle(PrimaryButtonStyle())
                 .disabled(state.isSavingMapping)
@@ -353,8 +353,8 @@ private struct ShortcutActionEditorRow: View {
                         Image(systemName: "trash")
                     }
                     .buttonStyle(.borderless)
-                    .help("移除这个动作")
-                    .accessibilityLabel("移除\(gesture.title)")
+                    .help(String(localized: "移除这个动作"))
+                    .accessibilityLabel(String(localized: "移除\(gesture.title)"))
                 }
             }
             .frame(height: 16)
@@ -370,7 +370,7 @@ private struct ShortcutActionEditorRow: View {
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
                             .stroke(JoyTheme.cardBorder, lineWidth: 1)
                     }
-                    .help("这是内置动作，请从上面的菜单选择")
+                    .help(String(localized: "这是内置动作，请从上面的菜单选择"))
             } else {
                 shortcutField
             }
@@ -430,7 +430,7 @@ private struct ShortcutActionEditorRow: View {
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
-        .help("选择特殊按键或行为")
+        .help(String(localized: "选择特殊按键或行为"))
     }
 
     private var isBuiltInAction: Bool {
@@ -451,13 +451,13 @@ private struct ShortcutActionEditorRow: View {
         HStack(spacing: 0) {
             Group {
                 if showManualInput {
-                    TextField("如 ⌘V 或 Command+V", text: $manualInput)
+                    TextField(String(localized: "如 ⌘V 或 Command+V"), text: $manualInput)
                         .textFieldStyle(.plain)
                         .font(.system(size: 16, weight: .medium))
                         .focused($isTyping)
                         .onSubmit { isTyping = false }
                         .onChange(of: manualInput) { _ in parseWhileTyping() }
-                        .accessibilityLabel("\(gesture.title)快捷键手动输入")
+                        .accessibilityLabel(String(localized: "\(gesture.title)快捷键手动输入"))
                         .accessibilityIdentifier("manual-shortcut-field")
                 } else {
                     ShortcutRecorderControl(
@@ -486,8 +486,8 @@ private struct ShortcutActionEditorRow: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, 12)
-                .help("清空")
-                .accessibilityLabel("清空\(gesture.title)")
+                .help(String(localized: "清空"))
+                .accessibilityLabel(String(localized: "清空\(gesture.title)"))
                 .accessibilityIdentifier("shortcut-clear")
 
                 Divider()
@@ -497,7 +497,7 @@ private struct ShortcutActionEditorRow: View {
             // Recording is what this field is for -- you press the keys you
             // want. Typing is for the keys you cannot press, so it is named
             // and always in the same place, but never given equal weight.
-            Button(showManualInput ? "改用录制" : "手动输入") {
+            Button(showManualInput ? String(localized: "改用录制") : String(localized: "手动输入")) {
                 showManualInput.toggle()
                 manualInput = showManualInput ? editableText : ""
                 validationMessage = nil
@@ -605,7 +605,7 @@ private struct ShortcutRecorderControl: NSViewRepresentable {
         button.currentLabel = label
         button.onRecord = onRecord
         button.onRecordingChanged = onRecordingChanged
-        button.toolTip = "点击后按下快捷键，Esc 取消"
+        button.toolTip = String(localized: "点击后按下快捷键，Esc 取消")
         // Named so the editor's own test can click it and then send keys at
         // it; there is no other way to prove recording still records.
         button.setAccessibilityIdentifier("shortcut-recorder")
@@ -622,7 +622,7 @@ private struct ShortcutRecorderControl: NSViewRepresentable {
 private final class ShortcutRecorderButton: NSButton {
     var onRecord: ((ShortcutDefinition) -> Void)?
     var onRecordingChanged: ((Bool) -> Void)?
-    var currentLabel = "未设置" {
+    var currentLabel = String(localized: "未设置") {
         didSet { if !isRecording { title = displayTitle } }
     }
     private var isRecording = false
@@ -640,7 +640,7 @@ private final class ShortcutRecorderButton: NSButton {
         window?.makeFirstResponder(self)
         isRecording = true
         peakModifiers = []
-        title = "请按快捷键"
+        title = String(localized: "请按快捷键")
         onRecordingChanged?(true)
     }
 
@@ -693,7 +693,7 @@ private final class ShortcutRecorderButton: NSButton {
     }
 
     private var displayTitle: String {
-        currentLabel == "未设置" ? "点击录制" : currentLabel
+        currentLabel == String(localized: "未设置") ? String(localized: "点击录制") : currentLabel
     }
 
     private func stopRecording() {

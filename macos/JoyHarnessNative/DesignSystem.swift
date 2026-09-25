@@ -137,8 +137,8 @@ struct RefreshButton: View {
         }
         .buttonStyle(IconButtonStyle())
         .disabled(isRefreshing)
-        .help("重新检测")
-        .accessibilityLabel("重新检测")
+        .help(String(localized: "重新检测"))
+        .accessibilityLabel(String(localized: "重新检测"))
         .onChange(of: isRefreshing) { refreshing in
             if refreshing {
                 withAnimation(.linear(duration: 0.85).repeatForever(autoreverses: false)) {

@@ -194,7 +194,7 @@ for literal in ('"fn", "按一下"', '"⌘V"', '"⌥A"', '"↩", "按一下"', '
 # --------------------------------------------------------------------------
 ACTIONS = set(BUILT_IN_ACTIONS) | set(GESTURE_SLOTS) | {"passthrough", "disabled"}
 dispatched = set(re.findall(r'action == "(\w+)"', key_mapper_src))
-catalogued = set(re.findall(r'"(\w+)": "', action_catalog))
+catalogued = set(re.findall(r'"(\w+)": (?:String\(localized: )?"', action_catalog))
 drafted = set(re.findall(r'case "(\w+)": return \.', mapping_editor))
 
 check(ACTIONS <= dispatched | {"disabled"}, "key_mapper does not dispatch every valid action",
@@ -425,7 +425,7 @@ for _page, _name in ((about_view, "关于"), (settings_view, "设置")):
 # every occurrence of 按键响应 meant a sentence about the row in a comment moved
 # the window this reads, and the check failed on prose rather than on
 # behaviour -- which is exactly what the docstring above forbids.
-check("state.availability" in connection_view.split('JoySectionHeader("按键响应")')[1].split("private var recoveryCard")[0],
+check("state.availability" in connection_view.split('JoySectionHeader(String(localized: "按键响应"))')[1].split("private var recoveryCard")[0],
       "the 按键响应 row reads only `paused` again",
       "it said 按键正在发出快捷键 on the same screen as the 还需要完成系统授权 banner")
 
@@ -446,6 +446,65 @@ forbid(app_model, "请将 App 放入", "the unactionable login-item instruction 
 # controller, so "finish it to stop it" is not a way out.
 check("func dismissOnboarding(markCompleted: Bool = true)" in app_model,
       "稍后设置 stops recording that the walkthrough was shown")
+
+# Every Chinese string the interface shows goes through the string table, or
+# an English Mac shows it in Chinese -- and nothing else would notice, because
+# the translation check only sees strings that were marked for translation.
+# The exceptions are data that happens to be Chinese: hotspot keys (compared,
+# and the keys of hotspots.json) and InputFocus's notes for the runtime log.
+def swift_literals(src):
+    i, n = 0, len(src)
+    while i < n:
+        if src.startswith("//", i):
+            j = src.find("\n", i)
+            i = n if j < 0 else j
+            continue
+        if src.startswith("/*", i):
+            j = src.find("*/", i)
+            i = n if j < 0 else j + 2
+            continue
+        if src[i] == '"':
+            start = i
+            i += 1
+            while i < n:
+                if src[i] == "\\" and src[i + 1:i + 2] == "(":
+                    depth, i = 1, i + 2
+                    while i < n and depth:
+                        if src[i] == '"':
+                            i = src.find('"', i + 1) + 1
+                            continue
+                        depth += {"(": 1, ")": -1}.get(src[i], 0)
+                        i += 1
+                    continue
+                if src[i] == "\\":
+                    i += 2
+                    continue
+                if src[i] == '"':
+                    i += 1
+                    break
+                i += 1
+            yield start, i
+            continue
+        i += 1
+
+CHINESE = re.compile(r"[\u4e00-\u9fff]")
+unmarked = []
+for swift_file in sorted(NATIVE.glob("*.swift")):
+    if swift_file.name == "InputFocus.swift":
+        continue
+    src = swift_file.read_text(encoding="utf-8")
+    for start, end in swift_literals(src):
+        if not CHINESE.search(src[start:end]):
+            continue
+        before = src[max(0, start - 40):start]
+        line = src[src.rfind("\n", 0, start) + 1:src.find("\n", end)]
+        if re.search(r"(String\(localized:\s*|Text\(|Button\(|case\s+|button\s*==\s*)$", before):
+            continue
+        if re.search(r'\("(RStick|LStick|Capture)"', line):
+            continue
+        unmarked.append(f"{swift_file.name}:{src.count(chr(10), 0, start) + 1} {src[start:end][:40]}")
+check(not unmarked, "Chinese interface text that is not marked for translation (wrap it in String(localized:))",
+      "; ".join(unmarked[:8]))
 
 # Focusing a field in JoyHarness's own window from the gateway's socket queue
 # runs makeFirstResponder off the main thread, which traps. Pressing X over
@@ -473,7 +532,7 @@ check("set_tk_root" not in runtime_src,
 if "--exclude-module tkinter" in runtime_build_script and "set_tk_root" not in runtime_src:
     check('"window_switch"' not in re.search(r"editableActions: \[String\] = \[([^\]]*)\]", action_catalog).group(1),
           "聚焦窗口 is offered in the editor again, but its 长按 still cannot happen")
-    check('value: "选择窗口"' not in mapping_config,
+    check('"选择窗口"' not in mapping_config,
           "the card promises 长按 → 选择窗口 again for a long press that does nothing")
 
 # Colour literals live in one file. Six in DesignSystem (four status colours

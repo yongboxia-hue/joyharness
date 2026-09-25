@@ -74,7 +74,7 @@ struct OnboardingView: View {
             }
             .animation(.easeOut(duration: 0.2), value: state.onboardingStep)
             Spacer()
-            Button("稍后设置") { state.dismissOnboarding() }
+            Button(String(localized: "稍后设置")) { state.dismissOnboarding() }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
                 .contentShape(Rectangle())
@@ -86,13 +86,13 @@ struct OnboardingView: View {
 
     private var footer: some View {
         HStack {
-            Button("上一步") {
+            Button(String(localized: "上一步")) {
                 state.onboardingStep = max(0, state.onboardingStep - 1)
             }
             .buttonStyle(SecondaryButtonStyle())
             .disabled(state.onboardingStep == 0)
             Spacer()
-            Button(isLastStep ? "开始用" : "继续") { advance() }
+            Button(isLastStep ? String(localized: "开始用") : String(localized: "继续")) { advance() }
                 .buttonStyle(PrimaryButtonStyle())
                 .disabled(!canContinue)
                 .accessibilityIdentifier("onboarding-next")
@@ -142,17 +142,17 @@ struct OnboardingView: View {
 
     private var setupTitle: (lead: String, main: String) {
         switch state.onboardingStep {
-        case 0: return ("把语音输入", "握在手里")
-        case 1: return ("先让 JoyHarness ", "替你按键")
-        default: return ("连上", "一只手柄")
+        case 0: return (String(localized: "把语音输入"), String(localized: "握在手里"))
+        case 1: return (String(localized: "先让 JoyHarness "), String(localized: "替你按键"))
+        default: return (String(localized: "连上"), String(localized: "一只手柄"))
         }
     }
 
     private var setupBody: String {
         switch state.onboardingStep {
-        case 0: return "X 聚焦、ZR 说话、A 发送。一只手就够。"
-        case 1: return "它不读你打的字，也不记录你按了什么。"
-        default: return "左右手柄都行，连一只就能用。"
+        case 0: return String(localized: "X 聚焦、ZR 说话、A 发送。一只手就够。")
+        case 1: return String(localized: "它不读你打的字，也不记录你按了什么。")
+        default: return String(localized: "左右手柄都行，连一只就能用。")
         }
     }
 
@@ -175,9 +175,9 @@ struct OnboardingView: View {
             AccessibilityToggleMock(granted: state.accessibilityGranted, icon: state.appIcon)
                 .frame(maxWidth: 360)
             if state.accessibilityGranted {
-                StatusPill(text: "已授权", color: JoyTheme.green)
+                StatusPill(text: String(localized: "已授权"), color: JoyTheme.green)
             } else {
-                Button("前往授权", action: state.requestAccessibility)
+                Button(String(localized: "前往授权"), action: state.requestAccessibility)
                     .buttonStyle(PrimaryButtonStyle())
             }
             // No "check again" button: authorization is polled once a second,
@@ -197,13 +197,13 @@ struct OnboardingView: View {
     /// on the side that slides into the console, not on the face.
     private var pairingSteps: some View {
         VStack(alignment: .leading, spacing: 14) {
-            pairingStep(1, "按住手柄侧面滑轨上的小圆钮，直到指示灯来回闪")
-            pairingStep(2, "在蓝牙设置里点 Joy-Con 旁的「连接」")
-            pairingStep(3, "连上时手柄会震一下")
+            pairingStep(1, String(localized: "按住手柄侧面滑轨上的小圆钮，直到指示灯来回闪"))
+            pairingStep(2, String(localized: "在蓝牙设置里点 Joy-Con 旁的「连接」"))
+            pairingStep(3, String(localized: "连上时手柄会震一下"))
             // The two ways "it won't connect" actually happens: a controller
             // that knows this Mac just needs waking; one that has since been
             // paired to a Switch has forgotten the Mac and must pair again.
-            Text("连过这台 Mac 的手柄，按任意键就会自己连回来。点「连接」没反应，多半是它后来连过 Switch：在蓝牙列表里移除它，从第 1 步再来。")
+            Text(String(localized: "连过这台 Mac 的手柄，按任意键就会自己连回来。点「连接」没反应，多半是它后来连过 Switch：在蓝牙列表里移除它，从第 1 步再来。"))
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .lineSpacing(3)
@@ -258,7 +258,7 @@ struct OnboardingView: View {
 
             // Hidden rather than removed once connected, so the picture
             // does not jump down the moment the controller arrives.
-            Button("打开蓝牙设置") { state.openBluetoothSettings() }
+            Button(String(localized: "打开蓝牙设置")) { state.openBluetoothSettings() }
                 .buttonStyle(SecondaryButtonStyle())
                 .opacity(hasOnboardingController ? 0 : 1)
                 .disabled(hasOnboardingController)
@@ -275,10 +275,10 @@ struct OnboardingView: View {
 
     private var connectedControllerSummary: String {
         switch (state.leftController.connected, state.rightController.connected) {
-        case (true, true): return "左右 Joy-Con 已连接"
-        case (true, false): return "左 Joy-Con 已连接"
-        case (false, true): return "右 Joy-Con 已连接"
-        case (false, false): return "等待 Joy-Con 连接"
+        case (true, true): return String(localized: "左右 Joy-Con 已连接")
+        case (true, false): return String(localized: "左 Joy-Con 已连接")
+        case (false, true): return String(localized: "右 Joy-Con 已连接")
+        case (false, false): return String(localized: "等待 Joy-Con 连接")
         }
     }
 
@@ -291,9 +291,9 @@ struct OnboardingView: View {
         return VStack(alignment: .leading, spacing: 16) {
             stepTitle(lead: title.lead, main: title.main)
             HStack(spacing: 8) {
-                Text("按一下")
+                Text(String(localized: "按一下"))
                 KeyCapChip(text: check.key, prominent: true)
-                Text("发出")
+                Text(String(localized: "发出"))
                 KeyCapChip(text: check.shortcut, prominent: false)
             }
             .font(.system(size: 15))
@@ -303,7 +303,7 @@ struct OnboardingView: View {
                 // Without this, a new user presses ZR, nothing visible
                 // happens, and the product looks broken -- which is exactly
                 // what it looks like when it is working correctly.
-                Text("说的话怎么变成字，由你自己选的语音输入法完成：先在它里面把启动快捷键设成 fn。Typeless、豆包都行，换成别的也可以。")
+                Text(String(localized: "说的话怎么变成字，由你自己选的语音输入法完成：先在它里面把启动快捷键设成 fn。Typeless、豆包都行，换成别的也可以。"))
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .lineSpacing(3)
@@ -330,10 +330,10 @@ struct OnboardingView: View {
 
     private func lessonTitle(_ lesson: OnboardingLesson) -> (lead: String, main: String) {
         switch lesson {
-        case .focus: return ("先，", "把光标放进输入框")
-        case .voice: return ("然后，", "说句话")
-        case .delete: return ("说错了，", "删一个字")
-        case .send: return ("最后，", "发出去")
+        case .focus: return (String(localized: "先，"), String(localized: "把光标放进输入框"))
+        case .voice: return (String(localized: "然后，"), String(localized: "说句话"))
+        case .delete: return (String(localized: "说错了，"), String(localized: "删一个字"))
+        case .send: return (String(localized: "最后，"), String(localized: "发出去"))
         }
     }
 
@@ -373,7 +373,7 @@ struct OnboardingView: View {
                 // Pressing A here "sends" -- say plainly that it goes nowhere,
                 // or a careful user will hesitate over the one key the step
                 // is asking for.
-                Text("练习用，不会发给任何人")
+                Text(String(localized: "练习用，不会发给任何人"))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
@@ -446,8 +446,8 @@ struct OnboardingView: View {
     /// "press fn once to start speaking" -- the field itself is the prompt.
     private func practicePlaceholder(_ check: OnboardingCheck) -> String {
         switch check.lesson {
-        case .focus: return "按一下 \(check.key)，光标就会来这里"
-        case .voice: return "按一下 \(check.key)，开始说话…"
+        case .focus: return String(localized: "按一下 \(check.key)，光标就会来这里")
+        case .voice: return String(localized: "按一下 \(check.key)，开始说话…")
         case .delete, .send: return ""
         }
     }
@@ -472,19 +472,19 @@ struct OnboardingView: View {
 
     private func doneText(_ check: OnboardingCheck) -> String {
         switch check.lesson {
-        case .focus: return "光标到位"
-        case .voice: return voiceTextArrived ? "收到了" : "\(check.shortcut) 已发出。说完了点继续"
-        case .delete: return "删掉了"
-        case .send: return "发出去了"
+        case .focus: return String(localized: "光标到位")
+        case .voice: return voiceTextArrived ? String(localized: "收到了") : String(localized: "\(check.shortcut) 已发出。说完了点继续")
+        case .delete: return String(localized: "删掉了")
+        case .send: return String(localized: "发出去了")
         }
     }
 
     private func waitingText(_ check: OnboardingCheck) -> String {
         switch check.lesson {
-        case .focus: return "等你按 \(check.key)"
-        case .voice: return "等你按 \(check.key)"
-        case .delete: return "按一下 \(check.key)，删掉最后一个字"
-        case .send: return "按一下 \(check.key)，把它发出去"
+        case .focus: return String(localized: "等你按 \(check.key)")
+        case .voice: return String(localized: "等你按 \(check.key)")
+        case .delete: return String(localized: "按一下 \(check.key)，删掉最后一个字")
+        case .send: return String(localized: "按一下 \(check.key)，把它发出去")
         }
     }
 
@@ -592,9 +592,9 @@ struct OnboardingView: View {
     }
 
     private var shortcutBlocker: String? {
-        if !state.serviceRunning { return "JoyHarness 现在没在运行。" }
-        if !state.permissionsSatisfied { return "要先授权。" }
-        if !hasOnboardingController { return "要先连上一只手柄。" }
+        if !state.serviceRunning { return String(localized: "JoyHarness 现在没在运行。") }
+        if !state.permissionsSatisfied { return String(localized: "要先授权。") }
+        if !hasOnboardingController { return String(localized: "要先连上一只手柄。") }
         return nil
     }
 
@@ -765,7 +765,7 @@ private struct AccessibilityToggleMock: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("系统设置 › 隐私与安全性 › 辅助功能")
+            Text(String(localized: "系统设置 › 隐私与安全性 › 辅助功能"))
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.secondary)
             HStack(spacing: 11) {

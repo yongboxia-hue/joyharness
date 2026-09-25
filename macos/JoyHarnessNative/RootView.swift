@@ -27,15 +27,15 @@ struct RootView: View {
             }
         }
         .alert(
-            "这一步没能完成",
+            String(localized: "这一步没能完成"),
             isPresented: Binding(
                 get: { state.lastError != nil },
                 set: { if !$0 { state.dismissError() } }
             )
         ) {
-            Button("知道了", role: .cancel) { state.dismissError() }
+            Button(String(localized: "知道了"), role: .cancel) { state.dismissError() }
         } message: {
-            Text(state.lastError ?? "稍后再试一次。")
+            Text(state.lastError ?? String(localized: "稍后再试一次。"))
         }
     }
 
@@ -51,7 +51,7 @@ struct RootView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("JoyHarness")
                         .font(.system(size: 14, weight: .bold))
-                    Text("Joy-Con 快捷键")
+                    Text(String(localized: "Joy-Con 快捷键"))
                         .font(.system(size: 11))
                         .foregroundStyle(JoyTheme.detail)
                 }
@@ -86,7 +86,7 @@ struct RootView: View {
                     .animation(.easeOut(duration: 0.15), value: hoveredPage)
                     .accessibilityLabel(page.title)
                     .accessibilityIdentifier("sidebar-\(page.rawValue)")
-                    .accessibilityValue(state.selectedPage == page ? "已选择" : "未选择")
+                    .accessibilityValue(state.selectedPage == page ? String(localized: "已选择") : String(localized: "未选择"))
                 }
             }
             .padding(.horizontal, 10)
