@@ -2,6 +2,17 @@
 
 本文件记录对使用者可见的变化。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [未发布]
+
+### 变更
+
+- **「关于」页写明了出处。** Python 运行时起步于 [VaderCheng/JoyHarness](https://github.com/VaderCheng/JoyHarness)，页面底部有它的链接；它的 MIT 版权声明随 App 一起分发
+- **磁吸麦克风握把的 3D 模型不再放在仓库里**
+
+### 修复
+
+- **英文界面下，「按键」页右上角的左右手柄切换不再超出页边。** 英文标签比中文长，原来的固定宽度装不下
+
 ## [0.2.2] — 2026-09-25
 
 ### 新增
