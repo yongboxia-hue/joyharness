@@ -2,7 +2,7 @@
 
 本文件记录对使用者可见的变化。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
-## [未发布]
+## [0.2.3] — 2026-09-26
 
 ### 变更
 
