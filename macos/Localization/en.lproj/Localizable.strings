@@ -8,6 +8,8 @@
 "版本信息，以及出问题时的排查入口。" = "Version, and where to start when something goes wrong.";
 "出问题时" = "When something goes wrong";
 "这是 Preview 版。它的设置只属于自己，不会动到你正式装的那个 JoyHarness。" = "This is the Preview build. Its settings are its own and never touch the JoyHarness you have installed.";
+"基于开源项目 " = "Built on the open-source project ";
+"，MIT 许可。" = ", MIT License.";
 "把 Joy-Con 变成快捷键控制器" = "Turns a Joy-Con into a shortcut controller";
 "版本 %@ Preview" = "Version %@ Preview";
 "版本 %@" = "Version %@";

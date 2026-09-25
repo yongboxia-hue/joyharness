@@ -186,6 +186,7 @@ scale_into "$ROOT_DIR/assets/controller/joycon-right.png" 906 "$RESOURCE_DIR/Joy
 scale_into "$ROOT_DIR/assets/controller/joycon-pair.png" 1024 "$RESOURCE_DIR/JoyConPair.png"
 cp "$ROOT_DIR/assets/controller/hotspots.json" "$RESOURCE_DIR/controller-hotspots.json"
 cp "$ROOT_DIR/config/user.json" "$RESOURCE_DIR/DefaultConfig.json"
+cp "$ROOT_DIR/LICENSE" "$RESOURCE_DIR/LICENSE"
 for lproj in "$ROOT_DIR"/macos/Localization/*.lproj; do
   rm -rf "$RESOURCE_DIR/$(basename "$lproj")"
   cp -R "$lproj" "$RESOURCE_DIR/"

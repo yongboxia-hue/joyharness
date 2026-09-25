@@ -40,6 +40,7 @@ for path in \
   "$RESOURCES/JoyHarness.icns" \
   "$RESOURCES/JoyHarnessAppIcon.png" \
   "$RESOURCES/DefaultConfig.json" \
+  "$RESOURCES/LICENSE" \
   "$RESOURCES/JoyConLeft.png" \
   "$RESOURCES/JoyConRight.png" \
   "$RESOURCES/JoyConPair.png" \

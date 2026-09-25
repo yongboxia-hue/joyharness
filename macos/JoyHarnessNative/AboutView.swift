@@ -92,6 +92,19 @@ struct AboutView: View {
                     .animation(JoyMotion.stateChange, value: state.isExportingDiagnostics)
                 }
 
+                // The Python runtime started as VaderCheng's JoyHarness, and its
+                // MIT license asks for the notice to travel with every copy. The
+                // full text ships in Resources/LICENSE; this line is where a
+                // person would look for it.
+                HStack(spacing: 0) {
+                    Text(String(localized: "基于开源项目 "))
+                    Link("VaderCheng/JoyHarness", destination: URL(string: "https://github.com/VaderCheng/JoyHarness")!)
+                    Text(String(localized: "，MIT 许可。"))
+                }
+                .font(.system(size: 12))
+                .foregroundStyle(JoyTheme.detail)
+                .padding(.horizontal, 4)
+
                 if state.buildFlavor == "preview" {
                     Text(String(localized: "这是 Preview 版。它的设置只属于自己，不会动到你正式装的那个 JoyHarness。"))
                         .font(.system(size: 12))
