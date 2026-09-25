@@ -55,6 +55,43 @@ enum AppAppearance: String, CaseIterable, Identifiable {
     }
 }
 
+/// Which language the interface speaks.
+///
+/// Stored exactly where System Settings' per-app language list stores it --
+/// AppleLanguages in this app's own defaults -- so the two are one setting
+/// seen from two places, and whichever the user touched last wins. The menu
+/// in System Settings is four levels deep; this one is where people look.
+enum AppLanguage: String, CaseIterable, Identifiable {
+    case system
+    case chinese = "zh-Hans"
+    case english = "en"
+
+    var id: String { rawValue }
+
+    /// Each language is named in itself, so someone who cannot read the
+    /// current interface can still find their own.
+    var title: String {
+        switch self {
+        case .system: return String(localized: "跟随系统")
+        case .chinese: return "简体中文"
+        case .english: return "English"
+        }
+    }
+
+    static let defaultsKey = "AppleLanguages"
+
+    /// Read from this app's own domain only. `UserDefaults.standard` would
+    /// fall through to the global list and report the system's language as
+    /// if the user had chosen it here.
+    static var stored: AppLanguage {
+        let domain = UserDefaults.standard.persistentDomain(forName: Bundle.main.bundleIdentifier ?? "") ?? [:]
+        guard let first = (domain[defaultsKey] as? [String])?.first else { return .system }
+        if first.hasPrefix("zh") { return .chinese }
+        if first.hasPrefix("en") { return .english }
+        return .system
+    }
+}
+
 enum AvailabilityState: Equatable {
     case serviceStopped
     case permissionRequired
@@ -144,6 +181,11 @@ final class AppState: ObservableObject {
     @Published var launchAtLoginRequiresApproval = false
     @Published var isUpdatingLaunchAtLogin = false
     @Published var appearance: AppAppearance = .system
+    /// What the user picked; takes effect on the next launch, because a
+    /// running app has already loaded its strings.
+    @Published private(set) var language: AppLanguage = AppLanguage.stored
+    /// The language the interface is actually in right now.
+    let launchLanguage: AppLanguage = AppLanguage.stored
     @Published var mappingConfiguration = MappingConfiguration.empty
     @Published var mappingConfigError: String?
     @Published var mappingDraft: MappingEditDraft?
@@ -478,7 +520,7 @@ final class AppState: ObservableObject {
         // once-a-second poll that arrives late enough to read as "did it
         // register?"; the runtime publishes a press the moment it happens,
         // so reading faster here is all it takes.
-        let fast = step.map { $0 >= Self.onboardingFirstKeyStep } ?? false
+        let fast = step.map { $0 >= Self.onboardingFirstKeyStep && $0 < onboardingFinishStep } ?? false
         if fast, onboardingFastTimer == nil {
             onboardingFastTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] _ in
                 Task { @MainActor in self?.refreshStatus() }
@@ -602,6 +644,26 @@ final class AppState: ObservableObject {
         applyAppearance()
     }
 
+    func setLanguage(_ value: AppLanguage) {
+        language = value
+        if value == .system {
+            UserDefaults.standard.removeObject(forKey: AppLanguage.defaultsKey)
+        } else {
+            UserDefaults.standard.set([value.rawValue], forKey: AppLanguage.defaultsKey)
+        }
+    }
+
+    /// Quit and open again, for the language change. A short detached shell
+    /// waits for this process to be gone and opens the bundle; opening it
+    /// while this one is still up would hand the launch to the running copy.
+    func relaunch() {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/sh")
+        task.arguments = ["-c", "sleep 1; /usr/bin/open \"$0\"", Bundle.main.bundleURL.path]
+        try? task.run()
+        NSApp.terminate(nil)
+    }
+
     func applyAppearance() {
         NSApp.appearance = appearance.nsAppearance
     }
@@ -622,7 +684,10 @@ final class AppState: ObservableObject {
     /// The key steps follow the three setup steps, one per check.
     static let onboardingFirstKeyStep = 3
 
-    var onboardingStepCount: Int { Self.onboardingFirstKeyStep + onboardingChecks.count }
+    /// A page of its own after the keys, so 开始使用 never sits where the
+    /// practice's own "send" was a moment ago.
+    var onboardingFinishStep: Int { Self.onboardingFirstKeyStep + onboardingChecks.count }
+    var onboardingStepCount: Int { onboardingFinishStep + 1 }
 
     /// The side the key steps are taught on: the connected one, and the right
     /// one when both or neither are. Either controller's presses count.
@@ -641,6 +706,7 @@ final class AppState: ObservableObject {
         // Both sides mirror by position, so the left hand's ZL stands in for
         // the right hand's ZR; X/B/A are the same names on either side.
         let trigger = side == .left ? "ZL" : "ZR"
+        let modifier = side == .left ? "Minus" : "Plus"
 
         func check(_ lesson: OnboardingLesson, _ button: String) -> OnboardingCheck? {
             guard let card = cards.first(where: { $0.id == button }) else { return nil }
@@ -657,6 +723,7 @@ final class AppState: ObservableObject {
         return [
             check(.focus, "X"),
             check(.voice, trigger),
+            check(.paste, modifier),
             check(.delete, "B"),
             check(.send, "A")
         ].compactMap { $0 }

@@ -202,10 +202,8 @@
 "· 电量 %lld/4" = "· Battery %lld/4";
 
 /* OnboardingView.swift */
-"明天下午三点开会" = "Meeting tomorrow at 3pm";
 "稍后设置" = "Set Up Later";
 "上一步" = "Back";
-"开始用" = "Start";
 "继续" = "Continue";
 "把语音输入" = "Voice input, ";
 "握在手里" = "in your hand";
@@ -233,7 +231,6 @@
 "删一个字" = "Delete a character";
 "最后，" = "Finally, ";
 "发出去" = "send it";
-"说的话怎么变成字，由你自己选的语音输入法完成：先在它里面把启动快捷键设成 fn。Typeless、豆包都行，换成别的也可以。" = "Turning speech into text is your own voice tool's job: set its start shortcut to fn first. Typeless works, and so does any other.";
 "按一下" = "Press";
 "发出" = "for";
 "JoyHarness 现在没在运行。" = "JoyHarness isn't running.";
@@ -244,7 +241,6 @@
 "按一下 %@，开始说话…" = "Press %@ and start talking…";
 "光标到位" = "Cursor's in";
 "收到了" = "Got it";
-"%@ 已发出。说完了点继续" = "%@ sent. Click Continue when you're done";
 "删掉了" = "Deleted";
 "发出去了" = "Sent";
 "等你按 %@" = "Waiting for %@";
@@ -303,3 +299,31 @@
 "%@：电量 %lld/4" = "%1$@: battery %2$lld/4";
 "%@：已连接，电量读取中" = "%@: connected, reading battery";
 "%@：%@" = "%1$@: %2$@";
+
+
+/* Added with the one-page practice, the paste step and the language setting */
+"试一试" = "Try it";
+"照着念：" = "Read this out:";
+"明天下午三点，在三楼会议室。" = "Tomorrow at 3pm, in the third-floor meeting room.";
+"明天几点开会？" = "What time is the meeting tomorrow?";
+"好，三楼见。" = "Great, see you on the third floor.";
+"说的话由你自己选的语音输入法转成文字：先在它里面把启动快捷键设成 fn，Typeless、豆包都行，换成别的也可以。按住说还是按一下开关，看它怎么设。" = "Your own voice tool turns speech into text: set its start shortcut to fn first. Typeless works, and so does any other. Whether you hold ZR or tap it on and off depends on how that tool is set up.";
+"%@ 已发出。没看到字，就去输入法里查一下快捷键" = "%@ sent. No text? Check the shortcut in your voice tool";
+"有现成的，" = "Already have it? ";
+"直接贴上" = "Paste it in";
+"剪贴板里已经放好一句：" = "This is on your clipboard now:";
+"在电梯右手边。" = " It's to the right of the elevator.";
+"你原来复制的内容，这一步结束后会放回去。" = "Whatever you had copied goes back when this step ends.";
+"按一下 %@，把剪贴板里的这句贴进来" = "Press %@ to paste it in";
+"贴上了" = "Pasted";
+"跳过这一步" = "Skip This Step";
+"说话，" = "Talk, ";
+"不用打字" = "don't type";
+"开始说话" = "Start talking";
+"开始使用" = "Get Started";
+"每个键都能在「按键」页改。" = "Every button can be changed on the Buttons page.";
+"语言" = "Language";
+"重新打开" = "Reopen";
+"重新打开 JoyHarness 后生效。" = "Takes effect when JoyHarness reopens.";
+"默认跟随系统语言。" = "Follows the system language by default.";
+"发送" = "Send";

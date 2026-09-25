@@ -502,6 +502,10 @@ for swift_file in sorted(NATIVE.glob("*.swift")):
             continue
         if re.search(r'\("(RStick|LStick|Capture)"', line):
             continue
+        # A language is named in itself in the language picker, so that
+        # someone who cannot read the current interface can find their own.
+        if src[start:end] == '"简体中文"':
+            continue
         unmarked.append(f"{swift_file.name}:{src.count(chr(10), 0, start) + 1} {src[start:end][:40]}")
 check(not unmarked, "Chinese interface text that is not marked for translation (wrap it in String(localized:))",
       "; ".join(unmarked[:8]))

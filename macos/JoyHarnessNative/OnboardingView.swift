@@ -3,16 +3,33 @@ import SwiftUI
 struct OnboardingView: View {
     @EnvironmentObject private var state: AppState
 
-    // The practice field lives here rather than inside a step, so what the
-    // user dictated in one step is still there to delete and send in the next.
+    // The practice lives here rather than inside a step, so what the user
+    // dictated in one step is still there to delete and send in the next.
     @State private var practiceText = ""
-    @State private var sentMessages: [PracticeMessage] = []
+    @State private var messages: [PracticeMessage] = [
+        PracticeMessage(text: String(localized: "明天几点开会？"), mine: false)
+    ]
     @FocusState private var practiceFocused: Bool
     @State private var pendingAdvance: Task<Void, Never>?
     /// Text changed after ZR was pressed: the user's voice tool is listening.
     @State private var voiceTextArrived = false
+    /// The practice window is on screen. Steps inside the practice do not
+    /// rebuild it; only arriving from another page does.
+    @State private var practiceMounted = false
+    /// What was on the clipboard before the paste step put its sentence
+    /// there, and the change count right after it did -- restored only if
+    /// nothing else has been copied since.
+    @State private var savedClipboard: SavedClipboard?
 
     private let hotspots = ControllerHotspotReader.load()
+
+    /// What the user is asked to read out, and what the practice falls back
+    /// to when there is nothing in the field to delete or send.
+    private var exampleSentence: String { String(localized: "明天下午三点，在三楼会议室。") }
+    /// What the paste step puts on the clipboard to be pasted.
+    /// In English it starts with a space, so pasted after the first sentence
+    /// the two do not run together; the card shows it without.
+    private var pasteSentence: String { String(localized: "在电梯右手边。") }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -20,13 +37,9 @@ struct OnboardingView: View {
             Divider()
             Group {
                 if let check = state.currentOnboardingCheck {
-                    HStack(spacing: 0) {
-                        keyInstruction(check)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        practicePanel(check)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .background(Color.primary.opacity(0.025))
-                    }
+                    practiceStage(check)
+                } else if isFinishStep {
+                    finishPage
                 } else {
                     HStack(spacing: 0) {
                         copy
@@ -37,9 +50,12 @@ struct OnboardingView: View {
                     }
                 }
             }
-            .id(state.onboardingStep)
+            // The four keys are one page. Rebuilding it on every key made the
+            // screen blink after each press, which reads as the input being
+            // interrupted -- and it threw away the field's focus each time.
+            .id(pageID)
             .transition(.opacity.combined(with: .move(edge: .trailing)))
-            .animation(JoyMotion.stepTransition, value: state.onboardingStep)
+            .animation(JoyMotion.stepTransition, value: pageID)
             Divider()
             footer
         }
@@ -49,6 +65,19 @@ struct OnboardingView: View {
         .onChange(of: state.onboardingWorkflowProgress) { _ in stepMaybeDone() }
         .onChange(of: practiceText) { _ in practiceTextChanged() }
         .onAppear { prepareStep() }
+        .onDisappear { restoreClipboard() }
+    }
+
+    private var isPracticeStep: Bool { state.currentOnboardingCheck != nil }
+    private var isFinishStep: Bool { state.onboardingStep >= state.onboardingFinishStep }
+    private var pageID: String { isPracticeStep ? "practice" : "step-\(state.onboardingStep)" }
+
+    /// Welcome, permission, connect, practice, done: the dots count pages,
+    /// not keys -- the keys have their own dots on the practice page.
+    private var stageIndex: Int {
+        if isFinishStep { return 4 }
+        if isPracticeStep { return 3 }
+        return min(state.onboardingStep, 2)
     }
 
     // MARK: - Frame
@@ -65,14 +94,14 @@ struct OnboardingView: View {
                 .font(.system(size: 14, weight: .bold))
             Spacer()
             HStack(spacing: 7) {
-                ForEach(0..<state.onboardingStepCount, id: \.self) { index in
+                ForEach(0..<5, id: \.self) { index in
                     Capsule()
-                        .fill(index == state.onboardingStep ? JoyTheme.blue
-                              : (index < state.onboardingStep ? JoyTheme.blue.opacity(0.35) : Color.primary.opacity(0.15)))
-                        .frame(width: index == state.onboardingStep ? 18 : 7, height: 7)
+                        .fill(index == stageIndex ? JoyTheme.blue
+                              : (index < stageIndex ? JoyTheme.blue.opacity(0.35) : Color.primary.opacity(0.15)))
+                        .frame(width: index == stageIndex ? 18 : 7, height: 7)
                 }
             }
-            .animation(.easeOut(duration: 0.2), value: state.onboardingStep)
+            .animation(.easeOut(duration: 0.2), value: stageIndex)
             Spacer()
             Button(String(localized: "稍后设置")) { state.dismissOnboarding() }
                 .buttonStyle(.plain)
@@ -92,10 +121,22 @@ struct OnboardingView: View {
             .buttonStyle(SecondaryButtonStyle())
             .disabled(state.onboardingStep == 0)
             Spacer()
-            Button(isLastStep ? String(localized: "开始用") : String(localized: "继续")) { advance() }
-                .buttonStyle(PrimaryButtonStyle())
-                .disabled(!canContinue)
-                .accessibilityIdentifier("onboarding-next")
+            if isPracticeStep {
+                // No blue button while practising: the practice's own goal is
+                // "send", and a primary button in the corner reads as the
+                // send button. Each key moves on by itself once it works;
+                // this is for a step that cannot, like voice with no tool set up.
+                Button(String(localized: "跳过这一步")) { advance() }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .contentShape(Rectangle())
+                    .accessibilityIdentifier("onboarding-skip-step")
+            } else {
+                Button(isFinishStep ? String(localized: "开始使用") : String(localized: "继续")) { advance() }
+                    .buttonStyle(PrimaryButtonStyle())
+                    .disabled(!canContinue)
+                    .accessibilityIdentifier("onboarding-next")
+            }
         }
         .padding(.horizontal, 24)
         .frame(height: 72)
@@ -282,33 +323,70 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Key steps
+    // MARK: - Practice
 
-    /// Left half of a key step: what to press, and where it is on the
-    /// controller in hand -- the key pulses, and lights up while pressed.
+    /// The four keys on one page: the instruction on the left changes, the
+    /// practice window on the right stays put and keeps its cursor.
+    private func practiceStage(_ check: OnboardingCheck) -> some View {
+        GeometryReader { proxy in
+            HStack(spacing: 0) {
+                keyInstruction(check)
+                    .frame(width: proxy.size.width * 0.42)
+                    .frame(maxHeight: .infinity)
+                practicePanel(check)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.primary.opacity(0.025))
+            }
+        }
+        .onAppear { practiceMounted = true }
+        .onDisappear { practiceMounted = false }
+    }
+
+    /// Left side: what to press, and where it is on the controller in hand
+    /// -- the key pulses, and lights up while pressed.
     private func keyInstruction(_ check: OnboardingCheck) -> some View {
         let title = lessonTitle(check.lesson)
+        let checks = state.onboardingChecks
         return VStack(alignment: .leading, spacing: 16) {
-            stepTitle(lead: title.lead, main: title.main)
             HStack(spacing: 8) {
-                Text(String(localized: "按一下"))
-                KeyCapChip(text: check.key, prominent: true)
-                Text(String(localized: "发出"))
-                KeyCapChip(text: check.shortcut, prominent: false)
-            }
-            .font(.system(size: 15))
-            .foregroundStyle(JoyTheme.detail)
-
-            if check.lesson == .voice {
-                // Without this, a new user presses ZR, nothing visible
-                // happens, and the product looks broken -- which is exactly
-                // what it looks like when it is working correctly.
-                Text(String(localized: "说的话怎么变成字，由你自己选的语音输入法完成：先在它里面把启动快捷键设成 fn。Typeless、豆包都行，换成别的也可以。"))
-                    .font(.system(size: 12))
+                Text(String(localized: "试一试"))
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.secondary)
-                    .lineSpacing(3)
-                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 5) {
+                    ForEach(checks) { item in
+                        Circle()
+                            .fill(state.onboardingWorkflowHas(item.id) ? JoyTheme.green
+                                  : (item.id == check.id ? JoyTheme.blue : Color.primary.opacity(0.16)))
+                            .frame(width: 7, height: 7)
+                    }
+                }
             }
+
+            // Only the words change from key to key, sliding up into place
+            // the way Typeless moves its instructions.
+            VStack(alignment: .leading, spacing: 14) {
+                stepTitle(lead: title.lead, main: title.main)
+                HStack(spacing: 8) {
+                    Text(String(localized: "按一下"))
+                    KeyCapChip(text: check.key, prominent: true)
+                    Text(String(localized: "发出"))
+                    KeyCapChip(text: check.shortcut, prominent: false)
+                }
+                .font(.system(size: 15))
+                .foregroundStyle(JoyTheme.detail)
+
+                if check.lesson == .voice {
+                    voiceExample
+                }
+                if check.lesson == .paste {
+                    pasteExample
+                }
+            }
+            .id(check.id)
+            .transition(.asymmetric(
+                insertion: .opacity.combined(with: .offset(y: 14)),
+                removal: .opacity
+            ))
 
             if let blocker = shortcutBlocker {
                 Text(blocker)
@@ -324,14 +402,75 @@ struct OnboardingView: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 48)
-        .padding(.vertical, 40)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .clipped()
+        .animation(.easeInOut(duration: 0.3), value: check.id)
+        .padding(.horizontal, 44)
+        .padding(.vertical, 36)
+    }
+
+    /// Something to say, after Typeless's "read the message below": a new
+    /// user facing a live microphone does not know what to say, and the
+    /// sentence is also the one the next two keys edit and send.
+    private var voiceExample: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(String(localized: "照着念："))
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Text(exampleSentence)
+                .font(.system(size: 16, weight: .medium))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 11)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(JoyTheme.blue.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(JoyTheme.blue.opacity(0.25), lineWidth: 1)
+                }
+            // Without the first sentence, a new user presses ZR, nothing
+            // visible happens, and the product looks broken -- which is
+            // exactly what it looks like when it is working correctly. The
+            // second is the question everyone has with a new voice tool.
+            Text(String(localized: "说的话由你自己选的语音输入法转成文字：先在它里面把启动快捷键设成 fn，Typeless、豆包都行，换成别的也可以。按住说还是按一下开关，看它怎么设。"))
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// The clipboard is the user's, and could hold anything -- a password, a
+    /// page of text. So the step brings its own sentence, says so, and puts
+    /// theirs back afterwards.
+    private var pasteExample: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(String(localized: "剪贴板里已经放好一句："))
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Text(pasteSentence.trimmingCharacters(in: .whitespaces))
+                .font(.system(size: 16, weight: .medium))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 11)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(JoyTheme.blue.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(JoyTheme.blue.opacity(0.25), lineWidth: 1)
+                }
+            Text(String(localized: "你原来复制的内容，这一步结束后会放回去。"))
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     private func lessonTitle(_ lesson: OnboardingLesson) -> (lead: String, main: String) {
         switch lesson {
         case .focus: return (String(localized: "先，"), String(localized: "把光标放进输入框"))
         case .voice: return (String(localized: "然后，"), String(localized: "说句话"))
+        case .paste: return (String(localized: "有现成的，"), String(localized: "直接贴上"))
         case .delete: return (String(localized: "说错了，"), String(localized: "删一个字"))
         case .send: return (String(localized: "最后，"), String(localized: "发出去"))
         }
@@ -355,14 +494,17 @@ struct OnboardingView: View {
                 lit: state.onboardingPressedButtons.compactMap(hotspotFor),
                 flash: state.onboardingPressFlash,
                 flashPoint: hotspotFor(state.onboardingPressFlash.button),
-                height: 300
+                // The voice step carries the sentence to read as well; at full
+                // size the drawing pushed the page taller than the window.
+                height: check.lesson == .voice || check.lesson == .paste ? 190 : 280
             )
         }
     }
 
-    /// Right half of a key step: a small composer where the key really does
-    /// its job. Pressing X really moves the cursor here, ZR really wakes the
-    /// user's voice tool, B really deletes and A really sends.
+    /// Right side: a conversation where the keys really do their job.
+    /// Pressing X really moves the cursor here, ZR really wakes the user's
+    /// voice tool, B really deletes and A really sends -- and someone
+    /// answers, so "send" has somewhere to go.
     private func practicePanel(_ check: OnboardingCheck) -> some View {
         VStack(spacing: 0) {
             HStack(spacing: 6) {
@@ -383,63 +525,65 @@ struct OnboardingView: View {
 
             ScrollViewReader { proxy in
                 ScrollView {
-                    VStack(alignment: .trailing, spacing: 8) {
-                        ForEach(sentMessages) { message in
-                            Text(message.text)
-                                .font(.system(size: 14))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 13)
-                                .padding(.vertical, 8)
-                                .background(JoyTheme.blue)
-                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                                .frame(maxWidth: 300, alignment: .trailing)
-                                .id(message.id)
-                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                    VStack(spacing: 10) {
+                        ForEach(messages) { message in
+                            HStack {
+                                if message.mine { Spacer(minLength: 60) }
+                                Text(message.text)
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(message.mine ? Color.white : Color.primary)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 9)
+                                    .background(message.mine ? JoyTheme.blue : Color.primary.opacity(0.07))
+                                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                if !message.mine { Spacer(minLength: 60) }
+                            }
+                            .id(message.id)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
                         }
                     }
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .padding(16)
+                    .padding(18)
                 }
-                .onChange(of: sentMessages.count) { _ in
-                    if let last = sentMessages.last {
+                .onChange(of: messages.count) { _ in
+                    if let last = messages.last {
                         withAnimation(JoyMotion.stateChange) { proxy.scrollTo(last.id, anchor: .bottom) }
                     }
                 }
             }
 
             practiceStatus(check)
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 18)
                 .padding(.bottom, 8)
 
             TextField("", text: $practiceText, prompt: Text(practicePlaceholder(check)), axis: .vertical)
                 .textFieldStyle(.plain)
-                .font(.system(size: 15))
-                .lineLimit(3...6)
+                .font(.system(size: 16))
+                .lineLimit(4...8)
                 .focused($practiceFocused)
                 .onSubmit(sendPractice)
-                .padding(.horizontal, 13)
-                .padding(.vertical, 11)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
                 .background(Color(nsColor: .textBackgroundColor))
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .stroke(practiceFocused ? JoyTheme.blue : JoyTheme.cardBorder,
                                 lineWidth: practiceFocused ? 2 : 1)
                 }
                 .animation(JoyMotion.hover, value: practiceFocused)
                 .accessibilityIdentifier("onboarding-practice-field")
-                .padding(.horizontal, 12)
-                .padding(.bottom, 12)
+                .padding(.horizontal, 14)
+                .padding(.bottom, 14)
         }
         .background(JoyTheme.cardSurface)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(JoyTheme.cardBorder, lineWidth: 1)
         }
-        .shadow(color: .black.opacity(0.06), radius: 14, y: 6)
-        .padding(.horizontal, 36)
-        .padding(.vertical, 40)
+        .shadow(color: .black.opacity(0.07), radius: 16, y: 6)
+        .padding(.horizontal, 28)
+        .padding(.vertical, 26)
     }
 
     /// The placeholder names the key, the way Typeless's playground says
@@ -448,7 +592,7 @@ struct OnboardingView: View {
         switch check.lesson {
         case .focus: return String(localized: "按一下 \(check.key)，光标就会来这里")
         case .voice: return String(localized: "按一下 \(check.key)，开始说话…")
-        case .delete, .send: return ""
+        case .paste, .delete, .send: return ""
         }
     }
 
@@ -468,12 +612,14 @@ struct OnboardingView: View {
         }
         .font(.system(size: 12, weight: .semibold))
         .animation(JoyMotion.stateChange, value: done)
+        .animation(JoyMotion.stateChange, value: check.id)
     }
 
     private func doneText(_ check: OnboardingCheck) -> String {
         switch check.lesson {
         case .focus: return String(localized: "光标到位")
-        case .voice: return voiceTextArrived ? String(localized: "收到了") : String(localized: "\(check.shortcut) 已发出。说完了点继续")
+        case .voice: return voiceTextArrived ? String(localized: "收到了") : String(localized: "\(check.shortcut) 已发出。没看到字，就去输入法里查一下快捷键")
+        case .paste: return String(localized: "贴上了")
         case .delete: return String(localized: "删掉了")
         case .send: return String(localized: "发出去了")
         }
@@ -483,37 +629,94 @@ struct OnboardingView: View {
         switch check.lesson {
         case .focus: return String(localized: "等你按 \(check.key)")
         case .voice: return String(localized: "等你按 \(check.key)")
+        case .paste: return String(localized: "按一下 \(check.key)，把剪贴板里的这句贴进来")
         case .delete: return String(localized: "按一下 \(check.key)，删掉最后一个字")
         case .send: return String(localized: "按一下 \(check.key)，把它发出去")
         }
     }
 
+    // MARK: - Done
+
+    /// Its own page, after Typeless's "Speak, don't type": the practice
+    /// ends on the message going out, and 开始使用 lives here alone rather
+    /// than in the corner where the practice's own send button seemed to be.
+    private var finishPage: some View {
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 20) {
+                stepTitle(lead: String(localized: "说话，"), main: String(localized: "不用打字"))
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(state.onboardingChecks) { check in
+                        HStack(spacing: 12) {
+                            KeyCapChip(text: check.key, prominent: true)
+                                .frame(width: 44, alignment: .leading)
+                            Text(finishLine(check.lesson))
+                                .font(.system(size: 15))
+                        }
+                    }
+                }
+                .padding(18)
+                .background(JoyTheme.cardSurface)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(JoyTheme.cardBorder, lineWidth: 1)
+                }
+                Text(String(localized: "每个键都能在「按键」页改。"))
+                    .font(.system(size: 13))
+                    .foregroundStyle(JoyTheme.detail)
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(.horizontal, 48)
+            .padding(.vertical, 40)
+            welcomeVisual
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.primary.opacity(0.025))
+        }
+    }
+
+    /// Plain verbs, not the step titles: those are sentence fragments ("send
+    /// it") that read wrong on their own in a list.
+    private func finishLine(_ lesson: OnboardingLesson) -> String {
+        switch lesson {
+        case .focus: return String(localized: "聚焦输入框")
+        case .voice: return String(localized: "开始说话")
+        case .paste: return String(localized: "粘贴")
+        case .delete: return String(localized: "删除")
+        case .send: return String(localized: "发送")
+        }
+    }
+
     // MARK: - Flow
 
-    /// Each key step starts from a state where its key visibly does
-    /// something: the cursor away from the field for X, in it for the rest,
-    /// and something in the field to delete and to send.
+    /// Each key starts from a state where it visibly does something: the
+    /// cursor away from the field for X, in it for the rest, and something
+    /// in the field to delete and to send.
     private func prepareStep() {
         pendingAdvance?.cancel()
         pendingAdvance = nil
-        guard let check = state.currentOnboardingCheck else { return }
+        let check = state.currentOnboardingCheck
+        if check?.lesson != .paste { restoreClipboard() }
+        guard let check else { return }
         if check.lesson == .voice { voiceTextArrived = false }
-        if check.lesson == .delete || check.lesson == .send,
+        if [.paste, .delete, .send].contains(check.lesson),
            practiceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            practiceText = String(localized: "明天下午三点开会")
+            practiceText = exampleSentence
         }
-        // The step's views are rebuilt on every step change, so focus set
-        // now would land on the field that is about to go away. Once the
-        // new one is in place:
+        if check.lesson == .paste { stageClipboard() }
+        // Arriving from another page builds the practice window, and focus
+        // set before it exists goes nowhere. Moving between keys it is
+        // already there.
         let step = state.onboardingStep
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+        let delay = practiceMounted ? 0.0 : 0.4
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
             guard state.onboardingStep == step else { return }
             if check.lesson == .focus {
                 // Nothing else in the window takes the cursor, so the field
                 // is plainly empty-handed until X puts it there.
                 practiceFocused = false
                 NSApp.keyWindow?.makeFirstResponder(nil)
-            } else {
+            } else if !practiceFocused {
                 practiceFocused = true
                 // A text field that takes focus selects everything in it, and
                 // one press of ⌫ then clears the whole sentence -- the step
@@ -529,12 +732,15 @@ struct OnboardingView: View {
     private func stepMaybeDone() {
         guard let check = state.currentOnboardingCheck,
               state.onboardingWorkflowHas(check.id),
-              pendingAdvance == nil,
-              !isLastStep else { return }
+              pendingAdvance == nil else { return }
+        switch check.lesson {
         // Voice waits for the user: they are mid-sentence when the press
         // registers. It moves on once their words have landed, below.
-        guard check.lesson != .voice else { return }
-        scheduleAdvance(after: 0.9)
+        case .voice: return
+        // Long enough to see the message go and the answer come back.
+        case .send: scheduleAdvance(after: 2.2)
+        default: scheduleAdvance(after: 0.9)
+        }
     }
 
     private func practiceTextChanged() {
@@ -558,17 +764,50 @@ struct OnboardingView: View {
         }
     }
 
+    private func stageClipboard() {
+        guard savedClipboard == nil else { return }
+        let board = NSPasteboard.general
+        let items = (board.pasteboardItems ?? []).map { item in
+            Dictionary(uniqueKeysWithValues: item.types.compactMap { type in
+                item.data(forType: type).map { (type, $0) }
+            })
+        }
+        board.clearContents()
+        board.setString(pasteSentence, forType: .string)
+        savedClipboard = SavedClipboard(items: items, changeCount: board.changeCount)
+    }
+
+    private func restoreClipboard() {
+        guard let saved = savedClipboard else { return }
+        savedClipboard = nil
+        let board = NSPasteboard.general
+        // Something new was copied since: that is the user's now, keep it.
+        guard board.changeCount == saved.changeCount else { return }
+        board.clearContents()
+        let items = saved.items.map { contents -> NSPasteboardItem in
+            let item = NSPasteboardItem()
+            for (type, data) in contents { item.setData(data, forType: type) }
+            return item
+        }
+        if !items.isEmpty { board.writeObjects(items) }
+    }
+
     private func sendPractice() {
         let text = practiceText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         withAnimation(.easeInOut(duration: 0.3)) {
-            sentMessages.append(PracticeMessage(text: text))
+            messages.append(PracticeMessage(text: text, mine: true))
         }
         practiceText = ""
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                messages.append(PracticeMessage(text: String(localized: "好，三楼见。"), mine: false))
+            }
+        }
     }
 
     private func advance() {
-        if isLastStep {
+        if isFinishStep {
             state.dismissOnboarding(markCompleted: true)
         } else {
             if state.onboardingStep == AppState.onboardingConnectStep {
@@ -578,12 +817,7 @@ struct OnboardingView: View {
         }
     }
 
-    private var isLastStep: Bool { state.onboardingStep >= state.onboardingStepCount - 1 }
-
     private var canContinue: Bool {
-        if let check = state.currentOnboardingCheck {
-            return state.onboardingWorkflowHas(check.id)
-        }
         switch state.onboardingStep {
         case 1: return state.permissionsSatisfied
         case AppState.onboardingConnectStep: return hasOnboardingController
@@ -603,9 +837,15 @@ struct OnboardingView: View {
     }
 }
 
+private struct SavedClipboard {
+    let items: [[NSPasteboard.PasteboardType: Data]]
+    let changeCount: Int
+}
+
 private struct PracticeMessage: Identifiable {
     let id = UUID()
     let text: String
+    let mine: Bool
 }
 
 // MARK: - Pieces

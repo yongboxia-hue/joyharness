@@ -20,11 +20,37 @@ enum InputGatewayError: LocalizedError {
 
 protocol KeyboardEventEmitting: AnyObject {
     func setKey(_ key: String, down: Bool) throws
+    /// The same, with modifier flags stated on the event itself.
+    func setKey(_ key: String, down: Bool, adding flags: CGEventFlags) throws
     func typeText(_ text: String) throws
+}
+
+extension KeyboardEventEmitting {
+    func setKey(_ key: String, down: Bool, adding flags: CGEventFlags) throws {
+        try setKey(key, down: down)
+    }
+}
+
+extension KeyboardKeyCatalog {
+    /// The flag a modifier key sets, or nil for a regular key.
+    static func modifierFlag(for rawKey: String) -> CGEventFlags? {
+        switch normalize(rawKey) {
+        case "cmd", "cmd_r": return .maskCommand
+        case "ctrl", "ctrl_r": return .maskControl
+        case "alt", "alt_r": return .maskAlternate
+        case "shift", "shift_l", "shift_r": return .maskShift
+        case "fn": return .maskSecondaryFn
+        default: return nil
+        }
+    }
 }
 
 final class CoreGraphicsKeyboardEmitter: KeyboardEventEmitting {
     func setKey(_ key: String, down: Bool) throws {
+        try setKey(key, down: down, adding: [])
+    }
+
+    func setKey(_ key: String, down: Bool, adding flags: CGEventFlags) throws {
         guard let keyCode = Self.keyCode(for: key) else { throw InputGatewayError.unsupportedKey(key) }
         guard let event = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: down) else {
             throw InputGatewayError.eventCreationFailed
@@ -41,6 +67,13 @@ final class CoreGraphicsKeyboardEmitter: KeyboardEventEmitting {
         // press = Cmd+V) posted a bare "v" with no modifier. If the original
         // stray-modifier leak into a plain tap turns out to be real, it
         // needs a fix that only touches tap/press/release, not combination.
+        //
+        // The ambient state is also not enough on its own: it catches up
+        // asynchronously, and a "v" posted 10ms after "cmd" went down can
+        // still be read before it has -- the walkthrough's paste step typed
+        // a bare "v" that way. A combination therefore also names its own
+        // modifiers on each key, on top of whatever is ambient.
+        if !flags.isEmpty { event.flags.formUnion(flags) }
         event.post(tap: .cghidEventTap)
     }
 
@@ -207,15 +240,21 @@ final class InputGateway {
             }
             stateLock.lock(); let heldInCombination = keys.filter { heldKeys.contains($0.lowercased()) }; stateLock.unlock()
             var pressedKeys: [String] = []
+            let comboFlags = keys.reduce(into: CGEventFlags()) { flags, key in
+                if let flag = KeyboardKeyCatalog.modifierFlag(for: key) { flags.insert(flag) }
+            }
             do {
                 for key in heldInCombination { try emitter.setKey(key, down: false) }
                 for key in keys {
-                    try emitter.setKey(key, down: true)
+                    try emitter.setKey(key, down: true, adding: comboFlags)
                     pressedKeys.append(key)
                     usleep(10_000)
                 }
                 usleep(useconds_t(max(1, request["hold_ms"] as? Int ?? 50) * 1000))
-                for key in pressedKeys.reversed() { try emitter.setKey(key, down: false) }
+                for key in pressedKeys.reversed() {
+                    // Released modifiers stop being named on the keys after them.
+                    try emitter.setKey(key, down: false, adding: KeyboardKeyCatalog.modifierFlag(for: key) == nil ? comboFlags : [])
+                }
                 pressedKeys.removeAll()
                 for key in heldInCombination { try emitter.setKey(key, down: true) }
             } catch {

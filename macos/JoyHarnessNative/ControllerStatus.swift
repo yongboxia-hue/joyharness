@@ -61,9 +61,10 @@ enum ControllerStatusParser {
 
 
 /// What a walkthrough key step teaches. The order here is the order taught:
-/// put the cursor in the box, say something, fix it, send it.
+/// put the cursor in the box, say something, paste in what you already have,
+/// fix it, send it.
 enum OnboardingLesson: String, CaseIterable, Sendable {
-    case focus, voice, delete, send
+    case focus, voice, paste, delete, send
 }
 
 /// One walkthrough key step, derived from the installed mappings.

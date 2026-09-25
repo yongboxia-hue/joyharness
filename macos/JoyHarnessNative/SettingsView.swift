@@ -25,6 +25,8 @@ struct SettingsView: View {
         }
     }
 
+    private var languagePending: Bool { state.language != state.launchLanguage }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
@@ -101,6 +103,35 @@ struct SettingsView: View {
                         )
                         Divider().padding(.leading, 47).padding(.vertical, 12)
                         InfoRow(
+                            symbol: "globe",
+                            title: String(localized: "语言"),
+                            detail: languagePending
+                                ? String(localized: "重新打开 JoyHarness 后生效。")
+                                : String(localized: "默认跟随系统语言。"),
+                            trailing: AnyView(
+                                HStack(spacing: 10) {
+                                    if languagePending {
+                                        Button(String(localized: "重新打开")) { state.relaunch() }
+                                            .buttonStyle(SecondaryButtonStyle())
+                                            .accessibilityIdentifier("language-relaunch")
+                                    }
+                                    Picker(String(localized: "语言"), selection: Binding(
+                                        get: { state.language },
+                                        set: { state.setLanguage($0) }
+                                    )) {
+                                        ForEach(AppLanguage.allCases) { language in
+                                            Text(language.title).tag(language)
+                                        }
+                                    }
+                                    .pickerStyle(.segmented)
+                                    .labelsHidden()
+                                    .frame(width: 238)
+                                    .accessibilityIdentifier("language-picker")
+                                }
+                            )
+                        )
+                        Divider().padding(.leading, 47).padding(.vertical, 12)
+                        InfoRow(
                             symbol: "moon.zzz",
                             title: String(localized: "手柄闲着的时候自动休眠"),
                             detail: state.idleSleepEnabled
@@ -142,6 +173,7 @@ struct SettingsView: View {
                     .animation(JoyMotion.stateChange, value: state.launchAtLogin)
                     .animation(JoyMotion.stateChange, value: state.launchAtLoginRequiresApproval)
                     .animation(JoyMotion.stateChange, value: state.appearance)
+                    .animation(JoyMotion.stateChange, value: state.language)
                 }
             }
             .padding(30)
